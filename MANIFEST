@@ -1,0 +1,22 @@
+Changes
+lib/DBIx/Connection.pm
+lib/DBIx/PLSQLHandler.pm
+lib/DBIx/SQLHandler.pm
+lib/DBIx/QueryCursor.pm
+lib/DBIx/Connection/MySQL/PLSQL.pm
+lib/DBIx/Connection/MySQL/Session.pm
+lib/DBIx/Connection/MySQL/SQL.pm
+lib/DBIx/Connection/Oracle/PLSQL.pm
+lib/DBIx/Connection/Oracle/Session.pm
+lib/DBIx/Connection/Oracle/SQL.pm
+lib/DBIx/Connection/PostgreSQL/PLSQL.pm
+lib/DBIx/Connection/PostgreSQL/Session.pm
+lib/DBIx/Connection/PostgreSQL/SQL.pm
+Makefile.PL
+MANIFEST
+README
+t/connection.t
+t/plsql_handler.t
+t/query_cursor.t
+t/sql_handler.t
+META.yml                                 Module meta-data (added by MakeMaker)
