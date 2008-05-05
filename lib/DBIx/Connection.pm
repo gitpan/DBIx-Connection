@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 $IDLE_THRESHOLD = 300;
 
 =head1 NAME
