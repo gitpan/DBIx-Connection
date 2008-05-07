@@ -76,7 +76,7 @@ the Perl README file.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 =cut
 

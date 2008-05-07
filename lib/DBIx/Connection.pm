@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.02;
+$VERSION = 0.03;
 $IDLE_THRESHOLD = 300;
 
 =head1 NAME
@@ -1102,6 +1102,6 @@ L<DBIx::PLSQLHandler>.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 =cut

@@ -202,7 +202,7 @@ the Perl README file.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 See also B<DBIx::Connection> B<DBIx::QueryCursor> B<DBIx::SQLHandler>.
 

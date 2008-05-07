@@ -1,4 +1,6 @@
 Revision history for Perl extension DBIx:Connection.
 
+0.02  Wen May 07 2008
+    - Pod doumentation fix.
 0.01  Mon May 05 2008
     -  Initial import to CPAN.

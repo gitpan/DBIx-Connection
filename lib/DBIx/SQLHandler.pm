@@ -6,7 +6,7 @@ use strict;
 use Abstract::Meta::Class ':all';
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
@@ -235,7 +235,7 @@ the Perl README file.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 See also B<DBIx::Connection> B<DBIx::QueryCursor> B<DBIx::PLSQLHandler>.
 

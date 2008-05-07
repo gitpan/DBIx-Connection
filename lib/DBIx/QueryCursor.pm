@@ -8,11 +8,11 @@ use Carp 'confess';
 use base 'DBIx::SQLHandler';
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
-DBIx::SQLCursor - Database cursor handler
+DBIx::QueryCursor - Database cursor handler
 
 =head1 SYNOPSIS
 
@@ -27,6 +27,7 @@ DBIx::SQLCursor - Database cursor handler
         $ename = result_set->{ENAME};
         ... do some stuff
     }
+
 
 =head1 DESCRIPTION
 
@@ -152,10 +153,13 @@ The DBIx::QueryCursor module is free software. You may distribute under the term
 either the GNU General Public License or the Artistic License, as specified in
 the Perl README file.
 
+=head1 SEE ALSO
+
+L<DBIx::Connection>
+L<DBIx::SQLHandler>.
+
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
-
-See also B<DBIx::Connection> B<DBIx::SQLHandler>.
+Adrian Witas, adrian@webapp.strefa.pl
 
 =cut

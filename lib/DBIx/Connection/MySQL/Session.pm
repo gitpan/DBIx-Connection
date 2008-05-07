@@ -5,19 +5,19 @@ use strict;
 
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
-DBIx::Connection::PostgreSQL::Session - sets MySQL session variables.
+DBIx::Connection::MySQL::Session- sets MySQL session variables.
 
 =head1 SYNOPSIS
 
-DBIx::Connection::Oracle::Session->initialise_session($connection, {NLS_DATE_FORMAT => 'DD.MM.YYYY'});
+    DBIx::Connection::MySQL::Session->initialise_session($connection, {NLS_DATE_FORMAT => 'DD.MM.YYYY'});
 
 =head1 DESCRIPTION
 
-Initialise Oracle session's variables.
+Initialise MYSQL session's variables.
 
 =head2 methods
 
@@ -25,7 +25,10 @@ Initialise Oracle session's variables.
 
 =item initialise_session
 
-Iniitialise session.
+Iniitialise session variable.
+It uses the following command pattern:
+    
+    SET @@local.variable = value;
 
 =cut
 
@@ -51,7 +54,7 @@ the Perl README file.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 See also B<DBIx::Connection>.
 

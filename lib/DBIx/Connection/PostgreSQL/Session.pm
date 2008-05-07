@@ -5,7 +5,7 @@ use strict;
 
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
@@ -13,7 +13,7 @@ DBIx::Connection::PostgreSQL::Session - Sets PostgreSQL session variables.
 
 =head1 SYNOPSIS
 
-DBIx::Connection::Oracle::Session->initialise_session($connection, {NLS_DATE_FORMAT => 'DD.MM.YYYY'});
+DBIx::Connection::PostgreSQL::Session->initialise_session($connection, {DateStyle => 'US'});
 
 =head1 DESCRIPTION
 
@@ -25,7 +25,11 @@ Initialise Oracle session's variables.
 
 =item initialise_session
 
-Iniitialise session.
+Iniitialise session variables
+
+It uses the following sql command pattern:
+    
+    SET variable TO value;
 
 =cut
 
@@ -51,7 +55,7 @@ the Perl README file.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 See also B<DBIx::Connection>.
 

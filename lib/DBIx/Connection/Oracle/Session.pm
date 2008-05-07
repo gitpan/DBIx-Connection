@@ -5,7 +5,7 @@ use strict;
 
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
@@ -25,7 +25,10 @@ Initialise Oracle session's variables.
 
 =item initialise_session
 
-Iniitialise session.
+Iniitialise session variables.
+It uses the following sql command pattern,
+
+    alter session set variable  = value;
 
 =cut
 
@@ -52,7 +55,7 @@ the Perl README file.
 
 =head1 AUTHOR
 
-Adrian Witas, E<lt>adrian@webapp.strefa.pl</gt>
+Adrian Witas, adrian@webapp.strefa.pl
 
 See also B<DBIx::Connection>.
 
