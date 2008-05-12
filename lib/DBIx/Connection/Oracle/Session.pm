@@ -9,7 +9,7 @@ $VERSION = 0.02;
 
 =head1 NAME
 
-DBIx::Connection::Oracle::Session - Sets Oracle session variables..
+DBIx::Connection::Oracle::Session - Oracle session wrapper.
 
 =head1 SYNOPSIS
 

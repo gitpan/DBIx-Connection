@@ -9,7 +9,7 @@ use base qw(DBIx::PLSQLHandler);
 
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 
 =head1 NAME
@@ -17,6 +17,39 @@ $VERSION = 0.01;
 DBIx::Connection::Oracle::PLSQL - PLSQL block handler
 
 =head1 SYNOPSIS
+
+    use DBIx::PLSQLHandler;
+
+    my $plsql_handler = new DBIx::PLSQLHandler(
+        name        => 'test_proc',
+        connection  => $connection,
+        plsql       => "
+        DECLARE
+        var1 INT;
+        BEGIN
+        var1 := :var2 + :var3;
+        END;",
+    );
+    $plsql_handler->execute(var2 => 12, var3 => 8);
+
+    or
+
+    use DBIx::Connection;
+
+
+    my $plsql_handler = $connection->plsql_handler(
+        name        => 'test_proc',
+        connection  => $connection,
+        plsql       => "
+        DECLARE
+        var1 INT;
+        BEGIN
+        :var1 := :var2 + :var3;
+        END;",
+    );
+
+    my $result_set = $plsql_handler->execute(var2 => 12, var3 => 8);
+
 
 =head2 methods
 

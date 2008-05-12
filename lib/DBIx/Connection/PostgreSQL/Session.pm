@@ -9,7 +9,7 @@ $VERSION = 0.02;
 
 =head1 NAME
 
-DBIx::Connection::PostgreSQL::Session - Sets PostgreSQL session variables.
+DBIx::Connection::PostgreSQL::Session - PostgreSQL session wrapper.
 
 =head1 SYNOPSIS
 

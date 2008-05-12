@@ -408,7 +408,7 @@ sub connect {
 
 =item check_connection
 
-Checks the database connection and reconnects if neccessary.
+Checks the database connection and reconnects if necessary.
 
 =cut
 
@@ -451,7 +451,7 @@ sub begin_work {
 
 =item commit
 
-Commits curent transaction.
+Commits current transaction.
 
 =cut
 
@@ -465,7 +465,7 @@ sub commit {
 
 =item rollback
 
-Rollbacks curent transaction.
+Rollbacks current transaction.
 
 =cut
 
@@ -522,7 +522,7 @@ Returns connection object for passed in connection name.
     sub  connection {
         my ($class, $name) = @_;
         if(!exists($connections_counter{$name})) {
-            die "conntection $name does not exist";
+            die "connection $name does not exist";
         }
         my $result;
         if ($CONNECTION_POOLING) {
@@ -599,7 +599,7 @@ Checks connection state.
     
 =item _is_idled
 
-Retuns true if connection is idle.
+returns true if connection is idle.
 
 =cut
 

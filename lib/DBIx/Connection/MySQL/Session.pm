@@ -9,11 +9,11 @@ $VERSION = 0.02;
 
 =head1 NAME
 
-DBIx::Connection::MySQL::Session- sets MySQL session variables.
+DBIx::Connection::MySQL::Session - MySQL session wrapper.
 
 =head1 SYNOPSIS
 
-    DBIx::Connection::MySQL::Session->initialise_session($connection, {NLS_DATE_FORMAT => 'DD.MM.YYYY'});
+    DBIx::Connection::MySQL::Session->initialise_session($connection, {time_zone => 'Europe/Helsinki'});
 
 =head1 DESCRIPTION
 

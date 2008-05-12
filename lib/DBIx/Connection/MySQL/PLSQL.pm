@@ -9,13 +9,55 @@ use base qw(DBIx::PLSQLHandler);
 
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
 DBIx::Connection::MySQL::PLSQL - PLSQL handler
 
 =head1 SYNOPSIS
+
+    use DBIx::PLSQLHandler;
+
+    my $plsql_handler = new DBIx::PLSQLHandler(
+        name        => 'test_proc',
+        connection  => $connection,
+        plsql       => "
+        DECLARE
+        var1 INT;
+        BEGIN
+        SET var1 := :var2 + :var3;
+        END;",
+	bind_variables => {
+            var2 => {type => 'SQL_INTEGER'},
+            var3 => {type => 'SQL_INTEGER'}
+	}
+    );
+    $plsql_handler->execute(var2 => 12, var3 => 8);
+
+    or
+
+    use DBIx::Connection;
+    ....
+
+    my $plsql_handler = $connection->plsql_handler(
+        name        => 'test_proc',
+        connection  => $connection,
+        plsql       => "
+        DECLARE
+        var1 INT;
+        BEGIN
+        :var1 := :var2 + :var3;
+        END;",
+	bind_variables => {
+            var1 => {type => 'SQL_INTEGER'},
+            var2 => {type => 'SQL_INTEGER'},
+            var3 => {type => 'SQL_INTEGER'}
+	}
+    );
+
+    my $result_set = $plsql_handler->execute(var2 => 12, var3 => 8);
+
 
 =cut
 
@@ -154,6 +196,15 @@ sub parsed_plsql {
 =item type_map 
 
 mapping between DBI and database types.
+The following mapping is defined:
+
+    SQL_DECIMAL => 'NUMERIC',
+    SQL_VARCHAR => 'VARCHAR',
+    SQL_DATE    =>'DATE',
+    SQL_CHAR    =>'CHAR',
+    SQL_DOUBLE  =>'NUMERIC',
+    SQL_INTEGER =>'INT',
+    SQL_BOOLEAN =>'BOOLEAN',
 
 =cut
 

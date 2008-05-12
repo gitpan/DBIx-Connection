@@ -10,7 +10,7 @@ use base qw(DBIx::PLSQLHandler);
 
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
@@ -18,7 +18,47 @@ DBIx::Connection::PostgreSQL::PLSQL - PLSQL block wrapper for PostgreSQL
 
 =head1 SYNOPSIS
 
-use DBIx::Connection::PostgreSQL::PLSQL;
+    use DBIx::PLSQLHandler;
+
+    my $plsql_handler = new DBIx::PLSQLHandler(
+        name        => 'test_proc',
+        connection  => $connection,
+        plsql       => "
+        DECLARE
+        var1 INT;
+        BEGIN
+        var1 := :var2 + :var3;
+        END;",
+	bind_variables => {
+            var2 => {type => 'SQL_INTEGER'},
+            var3 => {type => 'SQL_INTEGER'}
+	}
+    );
+    $plsql_handler->execute(var2 => 12, var3 => 8);
+
+    or
+
+    use DBIx::Connection;
+
+
+    my $plsql_handler = $connection->plsql_handler(
+        name        => 'test_proc',
+        connection  => $connection,
+        plsql       => "
+        DECLARE
+        var1 INT;
+        BEGIN
+        :var1 := :var2 + :var3;
+        END;",
+	bind_variables => {
+            var1 => {type => 'SQL_INTEGER'},
+            var2 => {type => 'SQL_INTEGER'},
+            var3 => {type => 'SQL_INTEGER'}
+	}
+    );
+
+    my $result_set = $plsql_handler->execute(var2 => 12, var3 => 8);
+
 
 =head1 DESCRIPTION
 
@@ -161,6 +201,15 @@ sub type_precision {''}
 =item type_map 
 
 Mapping between DBI and specyfic postgres types.
+The following mapping is defined:
+
+    SQL_DECIMAL => 'numeric',
+    SQL_VARCHAR => 'varchar',
+    SQL_DATE    =>'date',
+    SQL_CHAR    =>'varchar',
+    SQL_DOUBLE  =>'float8',
+    SQL_INTEGER =>'int4',
+    SQL_BOOLEAN =>'boolean',
 
 =cut
 

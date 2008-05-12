@@ -8,7 +8,7 @@ use Carp 'confess';
 use base 'DBIx::SQLHandler';
 use vars qw($VERSION);
 
-$VERSION = 0.02;
+$VERSION = 0.03;
 
 =head1 NAME
 
@@ -27,6 +27,15 @@ DBIx::QueryCursor - Database cursor handler
         $ename = result_set->{ENAME};
         ... do some stuff
     }
+
+
+    or
+
+    use DBIx::Connection;
+
+    my $cursor = $connection->query_cursor(
+        sql         => "SELECT * FROM emp WHERE ename = ?"
+    );
 
 
 =head1 DESCRIPTION

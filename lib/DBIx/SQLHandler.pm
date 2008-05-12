@@ -6,7 +6,7 @@ use strict;
 use Abstract::Meta::Class ':all';
 use vars qw($VERSION);
 
-$VERSION = 0.02;
+$VERSION = 0.03;
 
 =head1 NAME
 
@@ -30,6 +30,19 @@ DBIx::SQLHandler - Sql statement handler.
       sql         => "UPDATE emp SET ename = ? WHERE empno = ?"
     );
     $sql_handler->execute('Smith2',1);
+
+    or
+
+    use DBIx::Connection;
+
+    ...
+
+    my $sql_handler = $connection->sql_handler(
+       name => 'emp_ins'
+       sql => "INSERT INTO emp(empno, ename) VALUES(?, ?)",
+    );
+    $sql_handler->execute(1, 'Smith');
+
 
 =head1 DESCRIPTION
 

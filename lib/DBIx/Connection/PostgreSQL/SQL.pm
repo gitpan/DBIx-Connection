@@ -18,7 +18,6 @@ DBIx::Connection::PostgreSQL::SQL - PostgreSQL catalog sql abstractaction layer.
     
     use DBIx::Connection::PostgreSQL::SQL;
 
-
 =head1 DESCRIPTION
 
     Represents sql abstractaction layer

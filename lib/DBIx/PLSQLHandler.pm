@@ -9,7 +9,7 @@ use base 'DBIx::SQLHandler';
 use Data::Dumper;
 use vars qw($VERSION);
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 use constant DEFAULT_TYPE => 'SQL_VARCHAR';
 use constant DEFAULT_WIDTH => 32000;
@@ -22,7 +22,7 @@ DBIx::PLSQLHandler - PL/SQL procedural language handler.
 =head1 SYNOPSIS
 
     use DBIx::PLSQLHandler;
-    my $cursor = new DBIx::PLSQLHandler(
+    my $plsql = new DBIx::PLSQLHandler(
         connection => $connection,
         plsql      => "
 DECLARE
@@ -34,9 +34,27 @@ BEGIN
 END;"
 );
 
-    my $result_set = $cursor->execute(acct => 000212);
+    my $result_set = $plsql->execute(acct => 000212);
     # $result_set->{acct_balance}; $result_set->{extra_info}
     ... do some stuff
+
+    or
+
+    use DBIx::Connection;
+
+    ...
+
+     my $plsql = $connection->plsql_handler(
+            plsql      => "
+    DECLARE
+        debit_amt    CONSTANT NUMBER(5,2) := 500.00;
+    BEGIN
+        SELECT a.bal INTO :acct_balance FROM accounts a
+        WHERE a.account_id = :acct AND a.debit > debit_amt;
+        :extra_info := 'debit_amt: ' || debit_amt;
+    END;"
+    );
+
 
 =head1 DESCRIPTION
 
@@ -61,7 +79,7 @@ however you can change it by specyfing your types in bind_variables parameter.
 	    }
 	);
 
-In Oracle database plsql is used as an anonymous PLSQL block,
+In Oracle database it uses an anonymous PLSQL block,
 In mysql procedure wraps the plsql block.
 In postgresql function wraps the plsql block.
 Name for the procedure/function wrapper is created as 'anonymous_' + $self->name 
