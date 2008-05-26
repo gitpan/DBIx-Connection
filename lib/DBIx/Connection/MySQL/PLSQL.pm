@@ -59,23 +59,30 @@ DBIx::Connection::MySQL::PLSQL - PLSQL handler
     my $result_set = $plsql_handler->execute(var2 => 12, var3 => 8);
 
 
+=head2 METHODS
+
+=over
+
 =cut
 
 {
     my %SQL = (
         find_function => 'SELECT routine_definition FROM information_schema.ROUTINES WHERE routine_schema = ? AND routine_name = ? ',
     );
-    
+
+
+=item sql_defintion
+
+Returns sql statment definitio, Takes sql name as parameter.
+
+=cut
+
     sub sql_defintion {
         my ($self, $name) = @_;
         $SQL{$name};
     }
 }
 
-
-=head2 methods
-
-=over
 
 =item prepare
 
@@ -232,11 +239,13 @@ Returns
 }
 
 
+1;
+
 __END__
 
 =back
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 The DBIx::Connection::MySQL::PLSQL module is free software. You may distribute under the terms of
 either the GNU General Public License or the Artistic License, as specified in

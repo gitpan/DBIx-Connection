@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 38;
+use Test::More tests => 39;
 use DBIx::Connection;
 
 BEGIN{
@@ -10,7 +10,7 @@ BEGIN{
 }
 
 SKIP: {
-    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 37)
+    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 38)
       unless $ENV{DB_TEST_CONNECTION};
     
 
@@ -22,8 +22,8 @@ SKIP: {
     ); 
     
     my $dialect = lc($connection->dbms_name);
-    my $cursor = DBIx::QueryCursor->new(
-        connection => $connection,
+    my $cursor = $connection->query_cursor(
+        name       => 'my_cursor',
         sql        => "
         SELECT t.* FROM (
         SELECT 1 AS col1, 'text 1' AS col2 " . ($dialect eq 'oracle' ? ' FROM dual' : '') . "
@@ -32,7 +32,7 @@ SKIP: {
         ) t
         WHERE 1 = ? "
     );
-    
+    is($cursor, $connection->find_query_cursor('my_cursor'), 'should have cached query cursor');
     $cursor->execute([1]);
     is_deeply($cursor->columns, ['col1', 'col2'], 'should have query columns');
     

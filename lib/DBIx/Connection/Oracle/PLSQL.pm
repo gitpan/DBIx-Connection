@@ -55,9 +55,9 @@ DBIx::Connection::Oracle::PLSQL - PLSQL block handler
 
 =over
 
-=item initialise
+=item prepare
 
-Initialises handler.
+Prepares plsql cursor
 
 =cut 
 
@@ -99,9 +99,11 @@ sub bind_parameters {
 
 __END__
 
+1;
+
 =back
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 The DBIx::Connection::Oracle::PLSQL module is free software. You may distribute under the terms of
 either the GNU General Public License or the Artistic License, as specified in

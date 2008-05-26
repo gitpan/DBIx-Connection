@@ -68,23 +68,30 @@ then it recreated wraper function for changed plsql block
 
 =cut
 
+=head2 METHODS
+
+=over
+
+=cut
+
 {
     my %SQL = (
         find_function => 'SELECT prosrc AS routine_definition FROM pg_proc WHERE proname = ? ',
         function_args => 'SELECT t.typname, t.oid, p.proargtypes FROM pg_proc p JOIN pg_type t ON t.oid =  ANY (p.proallargtypes) WHERE p.proname = ? '
     );
-    
+
+=item sql_defintion
+
+Return sql statement defintion. Takes sql name.
+
+=cut
+
     sub sql_defintion {
         my ($self, $name) = @_;
         $SQL{$name};
     }
 }
 
-=head2 methods
-
-=over
-
-=cut
 
 =item prepare
 
@@ -243,7 +250,7 @@ __END__
 
 =back
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 The DBIx::Connection::PostgreSQL::PLSQL module is free software. You may distribute under the terms of
 either the GNU General Public License or the Artistic License, as specified in

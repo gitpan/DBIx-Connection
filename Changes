@@ -1,5 +1,8 @@
 Revision history for Perl extension DBIx:Connection.
 
+0.05  Mon May 26 2008
+    - Documentation improvements
+    - Added update_lob, fetch_lob methods
 0.03  Mon May 12 2008
     - Documentation improvements
 0.02  Wen May 07 2008

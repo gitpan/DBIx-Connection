@@ -7,7 +7,7 @@ use vars qw($VERSION);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 =head1 NAME
 
@@ -44,7 +44,7 @@ sub sequence_value {
 }
 
 
-=item restart_sequence
+=item reset_sequence
 
 Returns sql statement that restarts sequence.
 
@@ -57,8 +57,72 @@ sub reset_sequence {
 }
 
 
+=item set_session_variables
 
-1;    
+Iniitialise session variable.
+It uses the following command pattern:
+
+    SET @@local.variable = value;
+
+=cut
+
+sub set_session_variables {
+    my ($class, $connection, $db_session_variables) = @_;
+    my $sql = "";
+    $sql .= 'SET @@local.' . $_ . " = " . $db_session_variables->{$_} . ";"
+      for keys %$db_session_variables;
+    $connection->do($sql);
+}
+
+
+=item update_lob
+
+Updates lob. (Large Object)
+Takes connection object, table name, lob column_name, lob conetent, hash_ref to primary key values. optionally lob size column name.
+
+=cut
+
+sub update_lob {
+    my ($class, $connection, $table_name, $lob_column_name, $lob, $primary_key_values, $lob_size_column_name) = @_;
+    confess "missing primary key for lob update on ${table_name}.${lob_column_name}"
+        if (!$primary_key_values  || ! (%$primary_key_values));
+    confess "missing lob size column name" unless $lob_size_column_name;
+    my $sql = "UPDATE ${table_name} SET ${lob_column_name} = ? ";
+    $sql .= ($lob_size_column_name ? ", ${lob_size_column_name} = ? " : '')
+      . $connection->_where_clause($primary_key_values);
+
+    $connection->dbh->{max_allowed_packet} = length($lob);
+    my $bind_counter = 1;
+    my $sth = $connection->dbh->prepare($sql);
+    $sth->bind_param($bind_counter++ ,$lob);
+    $sth->bind_param($bind_counter++ , length($lob)) if $lob_size_column_name;
+    for my $k (sort keys %$primary_key_values) {
+        $sth->bind_param($bind_counter++ , $primary_key_values->{$k});
+    }
+    $sth->execute();
+    
+    
+}
+
+
+=item fetch_lob
+
+Retrieves lob.
+Takes connection object, table name, lob column_name, hash_ref to primary key values
+
+=cut
+
+sub fetch_lob {
+    my ($class, $connection, $table_name, $lob_column_name, $primary_key_values) = @_;
+    confess "missing primary key for lob update on ${table_name}.${lob_column_name}"
+        if (! $primary_key_values  || ! (%$primary_key_values));
+    my $sql = "SELECT ${lob_column_name} as lob_content FROM ${table_name} " . $connection->_where_clause($primary_key_values);
+    my $record = $connection->record($sql, map { $primary_key_values->{$_}} sort keys %$primary_key_values);
+    $record->{lob_content};
+}
+
+
+1;
 
 __END__
 
@@ -79,5 +143,3 @@ the Perl README file.
 Adrian Witas, adrian@webapp.strefa.pl
 
 =cut
-
-1;

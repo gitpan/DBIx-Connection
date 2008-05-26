@@ -141,7 +141,7 @@ sub execute {
     my $self = shift;
     my $connection = $self->connection;
     my $sth = $self->sth;
-    #warn $self->sql;
+    #warn $self->sql , join ",", @_;
     $connection->record_action_start_time;
     $sth->execute(@_) 
      or $self->error_handler(\@_);
@@ -240,7 +240,7 @@ __END__
 
 =back
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 The DBIx::SQLHandler module is free software. You may distribute under the terms of
 either the GNU General Public License or the Artistic License, as specified in

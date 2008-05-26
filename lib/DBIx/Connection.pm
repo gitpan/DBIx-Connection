@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.03;
+$VERSION = 0.05;
 $IDLE_THRESHOLD = 300;
 
 =head1 NAME
@@ -37,7 +37,7 @@ DBIx::Connection - Simple database interface.
     while ($cursor->fetch) {
         #do some stuff ...
         print $_ . " => " . $dataset->{$_}
-          for keys %$rowset;
+          for keys %$dataset;
     }
 
     {
@@ -345,24 +345,20 @@ Prepares statements each time, otherwise use prepare statement once and reuse it
 has '$.no_cache';
 
 
+=item _pending_transation
+
+Flag that indicate that connection has pending transaction
+
+=cut
+
+has '$._pending_transation';
+
+
 =back
 
 =head2 METHODS
 
 =over
-
-=item initialise_oracle_session
-
-=cut
-
-sub initialise_session {
-    my ($self) = @_;
-    my $db_session_variables = $self->db_session_variables;
-    my $module_name = $self->load_module('Session');
-    return unless  $module_name;
-    my $sql = $module_name->initialise_session($self, $db_session_variables);
-}
-
 
 =item load_module
 
@@ -435,6 +431,183 @@ sub do {
     $self->record_action_end_time($sql, 'execute');   
 }
 
+
+=item sql_handler
+
+Returns a new sql handeler instance.
+
+    my $sql_handler = $connection->sql_handler(
+        name => 'emp_ins'
+        sql => "INSERT INTO emp(empno, ename) VALUES(?, ?)",
+    );
+    $sql_handler->execute(1, 'Smith');
+
+=cut
+
+sub sql_handler {
+    my ($self, %args) = @_;
+    my $name = $args{name} || $args{sql};
+    my $result  = $self->_sql_handler($name);
+    if(! $result || $self->no_cache) {
+        $result = DBIx::SQLHandler->new(connection  => $self, %args);
+        $self->_sql_handler($name, $result);
+    }
+    $result;
+}
+
+
+=item find_sql_handler
+
+Returns cached sql handler.
+Takes sql handler name as parameter.
+
+
+    my $sql_handler = $connection->find_sql_handler('emp_ins');
+    $sql_handler->execute(1, 'Scott');
+
+
+=cut
+
+sub find_sql_handler {
+    my ($self, $name) = @_;
+    $self->_sql_handler($name);
+}
+
+
+=item execute_statement
+
+Executes passed in statement.
+
+    $connection->execute_statement("INSERT INTO emp(empno, ename) VALUES(?, ?)", 1, 'Smith');
+
+=cut
+
+sub execute_statement {
+    my ($self, $sql, @bind_variables) = @_;
+    my $sql_handler = $self->sql_handler(sql => $sql);
+    $sql_handler->execute(@bind_variables);
+}
+
+
+=item query_cursor
+
+        my $cursor = $connection->query_cursor(sql => "SELECT * FROM emp WHERE empno = ?");
+        my @result_set;
+        $cursor->execute([1], \@result_set);
+
+        or # my $result_set = $cursor->execute([1]);
+
+        my $iterator = $cursor->iterator;
+        while($iterator->()) {
+           #do some stuff
+           #@result_set 
+        }
+
+        # or        
+
+        while($cusor->fetch()) {
+           #do some stuff
+           #@result_set 
+        }
+
+=cut
+
+sub query_cursor {
+    my ($self, %args) = @_;
+    my $name = $args{name} || $args{sql};
+    my $result  = $self->_query_cursor($name);
+    if(! $result || $self->no_cache) {
+        $result = DBIx::QueryCursor->new(connection  => $self, %args);
+        $self->_query_cursor($name, $result);
+    }
+    $result;
+}
+
+
+=item find_query_cursor
+
+Returns cached query cursor.
+Takes query cursor name as parmeter.
+
+    my $cursor = $connection->find_query_cursor('my_cusror');
+    my $result_set = $cursor->execute([1]);
+
+=cut
+
+sub find_query_cursor {
+    my ($self, $name) = @_;
+    $self->_query_cursor($name);
+}
+
+
+=item plsql_handler
+
+Returns a new plsql handeler instance <DBIx::PLSQLHandler>.
+Takes DBIx::PLSQLHandler constructor parameters.
+
+    my $plsql_handler = $connection->plsql_handler(
+        name       => 'my_plsql',
+        plsql      => "DECLARE
+    debit_amt    CONSTANT NUMBER(5,2) := 500.00;
+    BEGIN
+        SELECT a.bal INTO :acct_balance FROM accounts a
+        WHERE a.account_id = :acct AND a.debit > debit_amt;
+        :extra_info := 'debit_amt: ' || debit_amt;
+    END;");
+
+    my $result_set = $plsql_handler->execute(acct => 000212);
+    print $result_set->{acct_balance};
+    print $result_set->{extra_info};
+
+=cut
+
+sub plsql_handler {
+    my ($self, %args) = @_;
+    my $name = $args{name} || $args{sql};
+    my $result  = $self->_plsql_handler($name);
+    if(! $result || $self->no_cache) {
+        $result = DBIx::PLSQLHandler->new(connection  => $self, %args);
+        $self->_plsql_handler($name, $result);
+    }
+    $result;
+    
+}
+
+
+=item find_plsql_handler
+
+Returns cached plsql handler, takes name of handler.
+
+    my $plsql_handler = $connection->find_plsql_handler('my_plsql');
+    my $result_set = $plsql_handler->execute(acct => 000212);
+
+=cut
+
+sub find_plsql_handler {
+    my ($self, $name) = @_;
+    $self->_plsql_handler($name);
+}
+
+
+=item record
+
+Returns resultset record. Takes sql statement, and bind variables parameters as list.
+
+    my $resultset = $connection->record("SELECT * FROM emp WHERE ename = ? AND deptno = ? ", 'scott', 10);
+    #$resultset->{ename}
+    # do some stuff
+
+=cut
+
+sub record {
+    my ($self, $sql, @bind_variables) = @_;
+    my $query_cursor = $self->query_cursor(sql => $sql);
+    my $result = $query_cursor->execute(\@bind_variables);
+    $query_cursor->fetch();
+    $result;
+}
+
+
 =item begin_work
 
 Begins transaction.
@@ -444,6 +617,9 @@ Begins transaction.
 sub begin_work {
     my ($self) = @_;
     my $dbh = $self->dbh;
+    confess "connection has allready pending transaction "
+        if $self->_pending_transation;
+    $self->_pending_transation(1);
     my $result = $dbh->begin_work() 
       or $self->error_handler("Could not start transaction");
 }
@@ -458,6 +634,7 @@ Commits current transaction.
 sub commit {
     my ($self) = @_;
     my $dbh = $self->dbh;
+    $self->_pending_transation(0);
     $dbh->commit() 
       or $self->error_handler("Could not commit current transaction");
 }
@@ -472,6 +649,7 @@ Rollbacks current transaction.
 sub rollback {
     my ($self) = @_;
     my $dbh = $self->dbh;
+    $self->_pending_transation(0);
     $dbh->rollback() 
       or $self->error_handler("Could not rollback current transaction");
 }
@@ -492,25 +670,11 @@ Initialises connection.
         my ($self) = @_;
         $self->set_name($self->dsn . " " . $self->username) unless $self->name;
         $self->connect;
-        $self->initialise_session  if (keys %{$self->db_session_variables});
+        $self->set_session_variables($self->db_session_variables)
+            if (keys %{$self->db_session_variables});
         $self->_cache_connection;
     }
 
-
-
-=item _cache_connection
-
-Checks connection
-
-=cut
-
-    sub _cache_connection {
-        my ($self) = @_;
-        my $name = $self->name;
-        my $counter = exists $connections_counter{$name} ? $connections_counter{$name} + 1 : 0;
-        $connections_counter{$name} = $counter;
-        $connections{"${name}_${counter}"} = $self;
-    }
 
 
 =item connection
@@ -538,6 +702,18 @@ Returns connection object for passed in connection name.
     }
 
 
+=item has_autocomit_mode
+
+Returns true if connection has autocommit mode
+
+=cut
+
+sub has_autocomit_mode {
+    my ($self) = @_;
+    !! $self->dbh->{AutoCommit};
+}
+
+
 =item _find_connection
 
 Finds connections
@@ -561,6 +737,21 @@ sub _find_connection {
     }
     $self->_clone_connection();
 }
+
+
+=item _cache_connection
+
+Checks connection
+
+=cut
+
+    sub _cache_connection {
+        my ($self) = @_;
+        my $name = $self->name;
+        my $counter = exists $connections_counter{$name} ? $connections_counter{$name} + 1 : 0;
+        $connections_counter{$name} = $counter;
+        $connections{"${name}_${counter}"} = $self;
+    }
 
 
 =item _clone_connection
@@ -718,6 +909,8 @@ sub primary_key_info {
             while ($cursor->fetch()) {
                 push @$result, [undef, $schema, $resultset->{table_name}, $resultset->{column_name}, undef, $resultset->{pk_name}];
             }
+        } else {
+            warn "not implemented ${module_name}::primary_key_info";
         }
     }
     $result;
@@ -753,13 +946,27 @@ sub table_info {
     my $result = $sth->fetchall_arrayref;
     unless(@$result) {
         my $module_name = $self->load_module('SQL');
-        if($module_name && $module_name->can('has_table')) {
+        if ($module_name && $module_name->can('has_table')) {
             my $record = $self->record($module_name->has_table, $table_name);
             $result = [undef,$self->name, $record->{table_name}, undef]
                 if $record->{table_name};
+        } else {
+            warn "not implemented ${module_name}::has_table";
         }
     }
     $result;
+}
+
+=item set_session_variables
+
+=cut
+
+sub set_session_variables {
+    my ($self, $db_session_variables) = @_;
+    my $module_name = $self->load_module('SQL');
+    if ($module_name && $module_name->can('set_session_variables')) {
+        $module_name->set_session_variables($self, $db_session_variables);
+    }
 }
 
 
@@ -789,6 +996,8 @@ sub has_sequence {
     if($module_name && $module_name->can('has_sequence')) {
         my $record = $self->record($module_name->has_sequence($self->username), $sequence_name);
         $result = $record->{sequence_name};    
+    } else {
+        warn "not implemented ${module_name}::has_sequence";
     }
     $result;
 }
@@ -824,132 +1033,12 @@ sub reset_sequence {
     $start_with ||= 1;
     $increment_by ||= 1;
     my $module_name = $self->load_module('SQL');
-    my @sqls = $module_name->reset_sequence($name, $start_with, $increment_by, $self);
-    $self->do($_) for @sqls;
-}
-
-
-=item sql_handler
-
-Returns a new sql handeler instance.
-
-    my $sql_handler = $connection->sql_handler(
-        name => 'emp_ins'
-        sql => "INSERT INTO emp(empno, ename) VALUES(?, ?)",
-    );
-    $sql_handler->execute(1, 'Smith');
-
-=cut
-
-sub sql_handler {
-    my ($self, %args) = @_;
-    my $name = $args{name} || $args{sql};
-    my $result  = $self->_sql_handler($name);
-    if(! $result || $self->no_cache) {
-        $result = DBIx::SQLHandler->new(connection  => $self, %args);
-        $self->_sql_handler($name, $result);
+    if($module_name && $module_name->can('reset_sequence')) {
+        my @sqls = $module_name->reset_sequence($name, $start_with, $increment_by, $self);
+        $self->do($_) for @sqls;
+    } else {
+        warn "not implemented ${module_name}::reset_sequence";
     }
-    $result;
-}
-
-
-=item execute_statement
-
-Executes passed in statement.
-
-    $connection->execute_statement("INSERT INTO emp(empno, ename) VALUES(?, ?)", 1, 'Smith');
-
-=cut
-
-sub execute_statement {
-    my ($self, $sql, @bind_variables) = @_;
-    my $sql_handler = $self->sql_handler(sql => $sql);
-    $sql_handler->execute(@bind_variables);
-}
-
-
-=item query_cursor
-
-        my $cursor = $connection->query_cursor("SELECT * FROM emp WHERE empno = ?");
-        my @result_set;
-        $cursor->execute([1], \@result_set);
-
-        or # my $result_set = $cursor->execute([1]);
-
-        my $iterator = $cursor->iterator;
-        while($iterator->()) {
-           #do some stuff
-           #@result_set 
-        }
-
-        # or        
-
-        while($cusor->fetch()) {
-           #do some stuff
-           #@result_set 
-        }
-
-=cut
-
-sub query_cursor {
-    my ($self, %args) = @_;
-    my $name = $args{name} || $args{sql};
-    my $result  = $self->_query_cursor($name);
-    if(! $result || $self->no_cache) {
-        $result = DBIx::QueryCursor->new(connection  => $self, %args);
-        $self->_query_cursor($name, $result);
-    }
-    $result;
-}
-
-
-=item plsql_handler
-
-Returns a new plsql handeler instance <DBIx::PLSQLHandler>.
-    my $plsql_handler = $connection->plsql_handler(
-        plsql      => "DECLARE
-debit_amt    CONSTANT NUMBER(5,2) := 500.00;
-BEGIN
-    SELECT a.bal INTO :acct_balance FROM accounts a
-    WHERE a.account_id = :acct AND a.debit > debit_amt;
-    :extra_info := 'debit_amt: ' || debit_amt;
-END;");
-
-    my $result_set = $cursor->execute(acct => 000212);
-    print $result_set->{acct_balance};
-    print $result_set->{extra_info};
-
-=cut
-
-sub plsql_handler {
-    my ($self, %args) = @_;
-    my $name = $args{name} || $args{sql};
-    my $result  = $self->_plsql_handler($name);
-    if(! $result || $self->no_cache) {
-        $result = DBIx::PLSQLHandler->new(connection  => $self, %args);
-        $self->_plsql_handler($name, $result);
-    }
-    $result;
-    
-}
-
-
-=item record
-
-Returns resultset record. Takes sql statement, and bind variables parameters as list.
-
-    my $resultset = $connection->record("SELECT * FROM emp WHERE ename = ? AND deptno = ? ", 'scott', 10);
-    #$resultset->{ename}
-    # do some stuff
-
-=cut
-
-sub record {
-    my ($self, $sql, @bind_variables) = @_;
-    my $query_cursor = $self->query_cursor(sql => $sql);
-    my $result = $query_cursor->execute(\@bind_variables);
-    $query_cursor->fetch();
-    $result;
 }
 
 
@@ -1076,6 +1165,62 @@ sub error_handler {
     }
 }
 
+
+=item update_lob
+
+Updates lob.
+
+Takes table_name, lob column name, lob content, hash_ref to primary key values. optionally lob size column name.
+
+    $connection->update_lob(lob_test => 'blob_content', $lob_content, {id => 1}, 'doc_size');
+
+=cut
+
+sub update_lob {
+    my ($self, $table_name, $lob_column_name, $lob, $primary_key_values, $lob_size_column_name) = @_;
+    my $module_name = $self->load_module('SQL');
+    if($module_name && $module_name->can('update_lob')) {
+        $module_name->update_lob($self, $table_name, $lob_column_name, $lob, $primary_key_values, $lob_size_column_name);
+    } else {
+        warn "not implemented ${module_name}::update_lob";
+    }
+}
+
+=item fetch_lob
+
+Returns lob, takes table name, lob column name, hash ref of primary key values, lob size column name
+
+    my $lob = $connection->fetch_lob(lob_test => 'blob_content', {id => 1}, 'doc_size');
+
+=cut
+
+sub fetch_lob {
+    my ($self, $table_name, $lob_column_name, $primary_key_values, $lob_size_column_name) = @_;
+    my $result;
+    my $module_name = $self->load_module('SQL');
+    if($module_name && $module_name->can('fetch_lob')) {
+        $result = $module_name->fetch_lob($self, $table_name, $lob_column_name, $primary_key_values, $lob_size_column_name);
+    } else {
+        warn "not implemented ${module_name}::fetch_lob";
+    }
+    $result;
+}
+
+
+=item _where_clause
+
+Returns Where caluse sql fragment, takes hash ref of fields values.
+
+=cut
+
+sub _where_clause {
+    my ($self, $field_values) = @_;
+    " WHERE " .  join(" AND ", map {( $_ . ' = ? ')} sort keys %$field_values);
+}
+
+=item DESTORY
+
+=cut
 
 sub DESTORY {
     my ($self) = @_;

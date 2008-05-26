@@ -2,11 +2,13 @@ package DBIx::Connection::Oracle::SQL;
 
 use strict;
 use warnings;
-use vars qw($VERSION);
+use vars qw($VERSION $LOB_MAX_SIZE);
 
 use Abstract::Meta::Class ':all';
+use Carp 'confess';
 
-$VERSION = 0.01;
+$VERSION = 0.02;
+$LOB_MAX_SIZE = (1024 * 1024 * 1024);
 
 =head1 NAME
 
@@ -101,7 +103,111 @@ ORDER BY position";
 }
 
 
-1;    
+=item set_session_variables
+
+Sets session variables.
+It uses the following sql command pattern,
+
+    alter session set variable  = value;
+
+    DBIx::Connection::Oracle::Session->initialise_session($connection, {NLS_DATE_FORMAT => 'DD.MM.YYYY'});
+
+=cut
+
+sub set_session_variables {
+    my ($class, $connection, $db_session_variables) = @_;
+    my $plsql = "BEGIN\n";
+    $plsql .= "execute immediate 'alter session set " . $_ . "=''" . $db_session_variables->{$_} . "''';\n" 
+      for keys %$db_session_variables;
+    $plsql .= "END;";
+    $connection->do($plsql);
+}
+
+
+=item update_lob
+
+Updates lob. (Large Object)
+Takes connection object, table name, lob column_name, lob conetent, hash_ref to primary key values. optionally lob size column name.
+
+=cut
+
+sub update_lob {
+    my ($class, $connection, $table_name, $lob_column_name, $lob, $primary_key_values, $lob_size_column_name) = @_;
+    confess "missing primary key for lob update on ${table_name}.${lob_column_name}"
+        if (!$primary_key_values  || ! (%$primary_key_values));
+
+    my $sql = "UPDATE ${table_name} SET ${lob_column_name} = ? ";
+    $sql .= ($lob_size_column_name ? ", ${lob_size_column_name} = ? " : '')
+      . $connection->_where_clause($primary_key_values);
+    my $clas = 'DBD::Oracle';
+    my $ora_type = $clas->can('SQLT_BIN') ? $class->SQLT_BIN : $clas->ORA_BLOB;
+    my $bind_counter = 1;
+    my $sth = $connection->dbh->prepare($sql);
+    $sth->bind_param($bind_counter++ ,$lob, { ora_type => $ora_type});
+    $sth->bind_param($bind_counter++ , length($lob)) if $lob_size_column_name;
+    for my $k (sort keys %$primary_key_values) {
+        $sth->bind_param($bind_counter++ , $primary_key_values->{$k});
+    }
+    $sth->execute();
+}
+
+
+=item fetch_lob
+
+Retrieves lob.
+Takes connection object, table name, lob column_name, hash_ref to primary key values. optionally lob size column name.
+By default max lob size is set to 1 GB
+DBIx::Connection::Oracle::SQL::LOB_MAX_SIZE = (1024 * 1024 * 1024);
+
+=cut
+
+{
+    my %long_read_cache;
+
+    sub fetch_lob {
+        my ($class, $connection, $table_name, $lob_column_name, $primary_key_values, $lob_size_column_name) = @_;
+        confess "missing primary key for lob update on ${table_name}.${lob_column_name}"
+            if (! $primary_key_values  || ! (%$primary_key_values));
+    
+        my $dbh = $connection->dbh;
+        # a bit hacky but it looks like DBD::Oracle 1.20 caches first call with LongReadLen
+        # and doesn't allow updates for greater size then the initial LongReadLen read
+        # so physicaly 1GB on lob limitiation to declared here variable $LOB_SIZE = (1024 * 1024 * 1024);
+        # another working solution is to reconnection - to expensive thuogh
+        
+        if (! exists($long_read_cache{"_" . $dbh})){
+            $dbh->{LongReadLen} = $LOB_MAX_SIZE;
+            $long_read_cache{"_" . $dbh} = 1;
+            
+        } else {
+            $dbh->{LongReadLen} = $class->_get_lob_size($connection, $table_name, $primary_key_values, $lob_size_column_name);
+        }
+        
+        my $sql = "SELECT ${lob_column_name} as lob_content FROM ${table_name} " . $connection->_where_clause($primary_key_values);
+        my $record = $connection->record($sql, map { $primary_key_values->{$_}} sort keys %$primary_key_values);
+        $record->{lob_content};
+    }
+}
+
+
+=item _get_lob_size
+
+Returns lob size.
+
+=cut
+
+sub _get_lob_size {
+    my ($class, $connection, $table_name, $primary_key_values, $lob_size_column_name) = @_;
+    my $resut;
+    if($lob_size_column_name) {
+        my $sql = "SELECT ${lob_size_column_name} as lob_size FROM ${table_name} " . $connection->_where_clause($primary_key_values);
+        my ($record) = $connection->record($sql, map { $primary_key_values->{$_}} sort keys %$primary_key_values);
+        $resut = $record->{lob_size};
+    }
+    $resut || $LOB_MAX_SIZE;
+}
+
+1;
 
 __END__
 
@@ -123,4 +229,3 @@ Adrian Witas, adrian@webapp.strefa.pl
 
 =cut
 
-1;

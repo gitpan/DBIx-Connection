@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 5;
 
 use DBIx::Connection;
 
@@ -12,7 +12,7 @@ BEGIN {
 
 SKIP: {
     # all tests assume that there is the following table CREATE TABLE test(id NUMBER, name VARCHAR2(100))
-    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 5)
+    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 4)
       unless $ENV{DB_TEST_CONNECTION};
 
     my $connection = DBIx::Connection->new(
@@ -22,21 +22,17 @@ SKIP: {
         password => $ENV{DB_TEST_PASSWORD},
     ); 
     
-    my $table_not_exists = 0;
-    my $error_handler = sub {
-        $table_not_exists = 1;
-        die;
-    };
-    $connection->set_custom_error_handler($error_handler);
+    my $table_not_exists = 1;
     eval {
         $connection->record("SELECT * FROM test");
+        $table_not_exists = 0;
     };
 
 SKIP: {
     
     if ($table_not_exists) {
         print "\n#missing test table CREATE TABLE test(id NUMBER, name VARCHAR2(100))\n";
-        skip('missing table', 5);
+        skip('missing table', 4);
     }
     
         $connection->do("DELETE FROM test");
@@ -46,7 +42,10 @@ SKIP: {
                 connection  => $connection,
                 sql         => "INSERT INTO test(id, name) VALUES(?, ?)"
             );
-            is($sql_handler->execute(1, 'Smith'),1 ,'should insert a row');
+            eval {
+                $sql_handler->execute(1, 'Smith');
+            };
+            ok(! $@, 'should insert a row');
         }
     
         {    
@@ -55,19 +54,23 @@ SKIP: {
                 connection  => $connection,
                 sql         => "UPDATE test SET name = ? WHERE id = ?"
             );
-            is(int($sql_handler->execute('Smith1',0)), 0, 'should not update');
-            is($sql_handler->execute('Smith1',1), 1, 'should update a row');
+            eval {
+                $sql_handler->execute('Smith1',1)
+            };
+            ok(! $@, 'should update a row');
         }
     
     
         {    
-            my $sql_handler = new DBIx::SQLHandler(
-                name        => 'test_ins',
-                connection  => $connection,
+            my $sql_handler = $connection->sql_handler(
+                name        => 'test_del',
                 sql         => "DELETE FROM test WHERE id = ?"
             );
-            is(int($sql_handler->execute(0)), 0, 'should not update');
-            is($sql_handler->execute(1), 1, 'should update a row');
+            is($sql_handler, $connection->find_sql_handler('test_del'), 'should have cached sql handler');
+            eval {
+                $sql_handler->execute('1');
+            };
+            ok( ! $@ , 'should delete row');
         }
     }
 

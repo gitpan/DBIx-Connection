@@ -237,7 +237,7 @@ sub set_binding_order {
 }
 
 
-=item add_default_variable_info
+=item default_variable_info
 
 Adds default variable meta data.
 
@@ -267,7 +267,7 @@ sub plsql_block_name {
 }
 
 
-=item create_plsql_block_binding
+=item plsql_block_declaration
 
 =cut
 
@@ -281,7 +281,7 @@ sub plsql_block_declaration {
 }
 
 
-=item get_variable_binding_order
+=item bind_variable_order
 
 Return bind variable order
 
@@ -317,7 +317,7 @@ sub binded_out_variables {
 }   
 
 
-=item get_sql_variable_definition
+=item variable_declaration
 
 Returns variable definition for plsql block stub
 
@@ -375,7 +375,7 @@ sub parsed_plsql {
 }
 
 
-=item check_block_changed
+=item is_block_changed
 
 Checks if plsql_block has been changed and return true otherwise false.
 
