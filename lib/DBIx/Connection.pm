@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.05;
+$VERSION = 0.06;
 $IDLE_THRESHOLD = 300;
 
 =head1 NAME
@@ -181,17 +181,24 @@ Supports setting specyfic RDBMS session variables.
         }
     )
 
-It caches sql statements and uses named sql handlers.
+It caches sql statements based on handler's name.
+
+    $connection->sql_handler(name => 'emp_ins', sql => "INSERT INTO emp(empno, ename) VALUES(?, ?)");
+    my $sql_handler = $connection->find_sql_handler('emp_ins');
+    $sql_handler->execute(1, 'Smith');
 
 
 Database usage:
 
-This module allows getting coverage about any sql issued by application, so that
-it's realy easy to find any bottelnecks to tune it.
+This module allows gathering sql statistics issued by application
 
 Automatic reporting:
 
-This module allows for automatic reporting in case of any errors.
+    $connection->set_collect_statistics(1);
+    $connection->set_statistics_dir('/sql_usage');
+
+
+Error handler customization:
 
 It supports eroror handler customization.
 
@@ -200,6 +207,16 @@ It supports eroror handler customization.
         #do some stuff
     };
     $connection->set_custom_error_handler($error_handler);
+
+
+Sequences support:
+
+    $connection->sequence_value('emp_seq');
+
+Large Object supprt;
+
+    $connection->update_lob(lob_test => 'blob_content', $lob_content,  {id => 1}, 'doc_size');
+    my $lob = $connection->fetch_lob(lob_test => 'blob_content', {id => 1}, 'doc_size');
 
 
 =head2 ATTRIBUTES
@@ -903,14 +920,13 @@ sub primary_key_info {
     if($result && ! @$result) {
         my $module_name = $self->load_module('SQL');
         if($module_name && $module_name->can('primary_key_info')) {
-            my $cursor = $self->query_cursor(sql => $module_name->primary_key_info($schema));
+            my $sql = $module_name->primary_key_info($schema);
+            my $cursor = $self->query_cursor(sql => $sql);
             my $resultset = $cursor->execute([$table_name, ($schema ? $schema : ())]);
             $result = [];
             while ($cursor->fetch()) {
                 push @$result, [undef, $schema, $resultset->{table_name}, $resultset->{column_name}, undef, $resultset->{pk_name}];
             }
-        } else {
-            warn "not implemented ${module_name}::primary_key_info";
         }
     }
     $result;

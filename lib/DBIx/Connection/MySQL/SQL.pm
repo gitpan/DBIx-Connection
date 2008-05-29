@@ -7,7 +7,7 @@ use vars qw($VERSION);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.02;
+$VERSION = 0.03;
 
 =head1 NAME
 
@@ -91,11 +91,11 @@ sub update_lob {
     $sql .= ($lob_size_column_name ? ", ${lob_size_column_name} = ? " : '')
       . $connection->_where_clause($primary_key_values);
 
-    $connection->dbh->{max_allowed_packet} = length($lob);
+    $connection->dbh->{max_allowed_packet} = length($lob) if $lob;
     my $bind_counter = 1;
     my $sth = $connection->dbh->prepare($sql);
     $sth->bind_param($bind_counter++ ,$lob);
-    $sth->bind_param($bind_counter++ , length($lob)) if $lob_size_column_name;
+    $sth->bind_param($bind_counter++ , ($lob ? length($lob) : 0)) if $lob_size_column_name;
     for my $k (sort keys %$primary_key_values) {
         $sth->bind_param($bind_counter++ , $primary_key_values->{$k});
     }

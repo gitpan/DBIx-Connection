@@ -1,5 +1,5 @@
 name:         DBIX-Connection
-version:      0.05
+version:      0.06
 author:
   - 'Adrian Witas <adrian@webapp.strefa.pl>'
 abstract: Simple database interface.
