@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 use DBIx::Connection;
 
@@ -12,7 +12,7 @@ BEGIN {
 
 SKIP: {
     # all tests assume that there is the following table CREATE TABLE test(id NUMBER, name VARCHAR2(100))
-    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 4)
+    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 5)
       unless $ENV{DB_TEST_CONNECTION};
 
     my $connection = DBIx::Connection->new(
@@ -32,8 +32,10 @@ SKIP: {
     
     if ($table_not_exists) {
         print "\n#missing test table CREATE TABLE test(id NUMBER, name VARCHAR2(100))\n";
-        skip('missing table', 4);
+        skip('missing table', 5);
     }
+
+	ok($connection->has_table('test'));
     
         $connection->do("DELETE FROM test");
         {    

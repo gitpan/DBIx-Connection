@@ -7,7 +7,7 @@ use vars qw($VERSION $LOB_MAX_SIZE);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.02;
+$VERSION = 0.04;
 $LOB_MAX_SIZE = (1024 * 1024 * 1024);
 
 =head1 NAME
@@ -79,8 +79,13 @@ Returns sql statement that check is table exists in database schema
 =cut
 
 sub has_table {
-    my ($class) = @_;
-    "SELECT table_name FROM user_tables WHERE table_name = UPPER(?)";
+    my ($class, $connection, $table_name) = @_;
+    my $result;
+    my $sql = "SELECT table_name FROM user_tables WHERE table_name = UPPER(?)";
+    my $record = $connection->record($sql, $table_name);
+    $result = [undef,$connection->name, $record->{table_name}, undef]
+        if $record->{table_name};
+    $result 
 }
 
 
@@ -144,7 +149,7 @@ sub update_lob {
     my $bind_counter = 1;
     my $sth = $connection->dbh->prepare($sql);
     $sth->bind_param($bind_counter++ ,$lob, { ora_type => $ora_type});
-    $sth->bind_param($bind_counter++ , length($lob)) if $lob_size_column_name;
+    $sth->bind_param($bind_counter++ , length($lob || '')) if $lob_size_column_name;
     for my $k (sort keys %$primary_key_values) {
         $sth->bind_param($bind_counter++ , $primary_key_values->{$k});
     }

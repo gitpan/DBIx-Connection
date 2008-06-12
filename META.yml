@@ -1,46 +1,23 @@
-name:         DBIX-Connection
-version:      0.06
+--- #YAML:1.0
+name:                DBIx-Connection
+version:             0.07
 author:
   - 'Adrian Witas <adrian@webapp.strefa.pl>'
 abstract: Simple database interface.
 license: perl
 resources:
   license: http://dev.perl.org/licenses/
-version_from: lib/DBIx/Connection.pm
+generated_by:        ExtUtils::MakeMaker version 6.3201
+distribution_type:   module
 requires:
-    Carp:                           0
-    Abstract::Meta::Class:          0
-    DBI:                            0
-    Time::HiRes:                    0
-build_requires:
-    Test::Pod:                      0
-    Test::Pod::Coverage:            0
-provides:
-DBIx::Connection:
-    file: lib/DBIx/Connection.pm
-DBIx::Connection::MySQL::PLSQL:
-    file: lib/DBIx/Connection/MySQL/PLSQL.pm
-DBIx::Connection::MySQL::SQL:
-    file: lib/DBIx/Connection/MySQL/SQL.pm
-DBIx::Connection::Oracle::PLSQL:
-    file: lib/DBIx/Connection/Oracle/PLSQL.pm
-DBIx::Connection::Oracle::SQL:
-    file: lib/DBIx/Connection/Oracle/SQL.pm
-DBIx::Connection::PostgreSQL::PLSQL:
-    file: lib/DBIx/Connection/PostgreSQL/PLSQL.pm
-DBIx::Connection::PostgreSQL::SQL:
-    file: lib/DBIx/Connection/PostgreSQL/SQL.pm
-DBIx::PLSQLHandler:
-    file: lib/DBIx/PLSQLHandler.pm
-DBIx::QueryCursor:
-    file: lib/DBIx/QueryCursor.pm
-DBIx::SQLHandler:
-    file: lib/DBIx/SQLHandler.pm
-    
-installdirs:  site
-distribution_type: module
+    perl:                          5.6.1    
+    Abstract::Meta::Class:         0
+    Carp:                          0
+    DBI:                           0
+    Test::Pod:                     0
+    Test::Pod::Coverage:           0
+    Time::HiRes:                   0
 tests: t/*.t
-generated_by: ExtUtils::MakeMaker version 6.30
 meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.2.html
-  version: 1.2
+    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
+    version: 1.2

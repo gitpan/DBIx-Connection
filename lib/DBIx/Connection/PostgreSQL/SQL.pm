@@ -7,7 +7,7 @@ use vars qw($VERSION $LOB_MAX_SIZE);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.02;
+$VERSION = 0.03;
 $LOB_MAX_SIZE = (1024 * 1024 * 1024);
 
 =head1 NAME
@@ -160,7 +160,7 @@ sub _create_lob {
     my $lobj_fd = $dbh->func($lob_id, $mode, 'lo_open');
     confess "can't open lob ${lob_id}". $!
         unless defined $lobj_fd;
-    my $length = length($lob);
+    my $length = length($lob || '');
     my $offset = 0;
     while($length > 0) {
         $dbh->func($lobj_fd, $offset, 0, 'lo_lseek');

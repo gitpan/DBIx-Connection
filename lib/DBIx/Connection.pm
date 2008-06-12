@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.06;
+$VERSION = 0.07;
 $IDLE_THRESHOLD = 300;
 
 =head1 NAME
@@ -78,7 +78,7 @@ DBIx::Connection - Simple database interface.
     $DBIx::Connection::CONNECTION_POOLING = 1;
 
     In this mode only connection may have the following states : in_use and NOT in_use,
-    Only connection that is "NOT in use" state can be retrieve by callin DBIx::Connection->connection, and
+    Only connection that is "NOT in use" state can be retrieve by invoking DBIx::Connection->connection, and
     state changes to "in use".  Close method change state back to NOT in_use.
     If in connection pool there are not connections in "NOT in use" state, then the new connection is cloned.
 
@@ -169,7 +169,7 @@ Connection is cached by its name.
 
     $connection = DBIx::Connection->connection('my_connection_name');
 
-Supports setting specyfic RDBMS session variables.
+RDBMS session variables supports.
 
     my $databaseHandler = DBIx::Connection->new(
         name                 => 'my_connection_name',
@@ -213,7 +213,7 @@ Sequences support:
 
     $connection->sequence_value('emp_seq');
 
-Large Object supprt;
+Large Object support;
 
     $connection->update_lob(lob_test => 'blob_content', $lob_content,  {id => 1}, 'doc_size');
     my $lob = $connection->fetch_lob(lob_test => 'blob_content', {id => 1}, 'doc_size');
@@ -362,13 +362,13 @@ Prepares statements each time, otherwise use prepare statement once and reuse it
 has '$.no_cache';
 
 
-=item _pending_transation
+=item _active_transaction
 
 Flag that indicate that connection has pending transaction
 
 =cut
 
-has '$._pending_transation';
+has '$._active_transaction';
 
 
 =back
@@ -634,9 +634,9 @@ Begins transaction.
 sub begin_work {
     my ($self) = @_;
     my $dbh = $self->dbh;
-    confess "connection has allready pending transaction "
-        if $self->_pending_transation;
-    $self->_pending_transation(1);
+    confess "connection has allready active transaction "
+        if $self->_active_transaction;
+    $self->_active_transaction(1);
     my $result = $dbh->begin_work() 
       or $self->error_handler("Could not start transaction");
 }
@@ -651,7 +651,7 @@ Commits current transaction.
 sub commit {
     my ($self) = @_;
     my $dbh = $self->dbh;
-    $self->_pending_transation(0);
+    $self->_active_transaction(0);
     $dbh->commit() 
       or $self->error_handler("Could not commit current transaction");
 }
@@ -666,7 +666,7 @@ Rollbacks current transaction.
 sub rollback {
     my ($self) = @_;
     my $dbh = $self->dbh;
-    $self->_pending_transation(0);
+    $self->_active_transaction(0);
     $dbh->rollback() 
       or $self->error_handler("Could not rollback current transaction");
 }
@@ -960,15 +960,12 @@ sub table_info {
     my ($self, $table_name) = @_;
     my $sth = $self->dbh->table_info(undef, undef, $table_name, 'TABLE');
     my $result = $sth->fetchall_arrayref;
-    unless(@$result) {
+    unless (@$result) {
         my $module_name = $self->load_module('SQL');
         if ($module_name && $module_name->can('has_table')) {
-            my $record = $self->record($module_name->has_table, $table_name);
-            $result = [undef,$self->name, $record->{table_name}, undef]
-                if $record->{table_name};
-        } else {
-            warn "not implemented ${module_name}::has_table";
-        }
+            $result = $module_name->has_table($self, $table_name);
+
+        } 
     }
     $result;
 }
@@ -1234,6 +1231,7 @@ sub _where_clause {
     " WHERE " .  join(" AND ", map {( $_ . ' = ? ')} sort keys %$field_values);
 }
 
+
 =item DESTORY
 
 =cut
@@ -1243,7 +1241,8 @@ sub DESTORY {
     $self->print_usage_report_to_file;
 }
 
-1;    
+
+1;
 
 __END__
 

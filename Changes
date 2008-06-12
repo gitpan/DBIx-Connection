@@ -1,5 +1,9 @@
 Revision history for Perl extension DBIx:Connection.
 
+0.07  Fri May 30 2008
+    - Add tests
+    - Improved documentation
+
 0.06  Fri May 30 2008
     - Removed warnings for primary_key_info
     - Documentation improvements

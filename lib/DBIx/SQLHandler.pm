@@ -141,11 +141,10 @@ sub execute {
     my $self = shift;
     my $connection = $self->connection;
     my $sth = $self->sth;
-    #warn $self->sql , join ",", @_;
     $connection->record_action_start_time;
     $sth->execute(@_) 
-     or $self->error_handler(\@_);
-     $connection->record_action_end_time($self->sql);
+      or $self->error_handler(\@_);
+    $connection->record_action_end_time($self->sql);
 }
 
 
@@ -236,6 +235,7 @@ sub cleanup {
 }
 
 1;
+
 __END__
 
 =back
