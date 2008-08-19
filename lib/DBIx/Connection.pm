@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.07;
+$VERSION = 0.08;
 $IDLE_THRESHOLD = 300;
 
 =head1 NAME
@@ -30,6 +30,16 @@ DBIx::Connection - Simple database interface.
         NLS_DATE_FORMAT => 'DD.MM.YYYY'
       }
     );
+
+    or
+    my $dbh = DBI->connect(...);
+    my $connection = DBIx::Connection->new(
+      name  => 'my_connection_name',
+      dbh   => $dbh,
+      db_session_variables => {
+        NLS_DATE_FORMAT => 'DD.MM.YYYY'
+      }
+    );    
 
 
     my $cursor = $connection->query_cursor(sql => "select * from emp where deptno > ?", name => 'emp_select');
@@ -165,7 +175,6 @@ Connection is cached by its name.
         username             => 'user',
         password             => 'password',
     );
-
 
     $connection = DBIx::Connection->connection('my_connection_name');
 
@@ -673,7 +682,8 @@ sub rollback {
 
 
 
-{my %connections;
+{
+ my %connections;
  my %connections_counter;
 
 
@@ -686,7 +696,11 @@ Initialises connection.
     sub initialise {
         my ($self) = @_;
         $self->set_name($self->dsn . " " . $self->username) unless $self->name;
-        $self->connect;
+        if($self->dbh) {
+            $self->is_connected(1);
+        } else {
+            $self->connect;
+        }
         $self->set_session_variables($self->db_session_variables)
             if (keys %{$self->db_session_variables});
         $self->_cache_connection;

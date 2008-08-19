@@ -1,7 +1,8 @@
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 16;
+use DBI;
 
 BEGIN{
     use_ok('DBIx::Connection');
@@ -10,7 +11,7 @@ BEGIN{
 
 SKIP: {
     
-    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 13)
+    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 15)
       unless $ENV{DB_TEST_CONNECTION};
 
     my $connection = DBIx::Connection->new(
@@ -27,6 +28,13 @@ SKIP: {
     isa_ok($connection, 'DBIx::Connection', 'should have an instance of the DBIx::Connection');
     ok($connection->check_connection, 'should check connection');
     ok($connection->dbms_name, 'should have dbms name');
+    my $dbh = $connection->dbh;
+    my $connection1 = DBIx::Connection->new(
+        name => 'my_connection_name1',
+        dbh  => $dbh
+    );
+    isa_ok($connection1, 'DBIx::Connection');
+    ok($connection1->dbms_name, 'should have dbms name');
     
 
     $DBIx::Connection::CONNECTION_POOLING = 1;
@@ -59,4 +67,7 @@ SKIP: {
     my $pooled_connection6 = DBIx::Connection->connection('my_connection_name');
     is($pooled_connection2, $pooled_connection6, "retrive connection from the connection pool");
     ok($pooled_connection6->is_connected, "reconnected");
+
+ 
+
 }
