@@ -1,14 +1,19 @@
 package DBIx::QueryCursor;
 
+
 use warnings;
 use strict;
+
+
 
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 use base 'DBIx::SQLHandler';
 use vars qw($VERSION);
 
-$VERSION = 0.03;
+$VERSION = 0.04;
+
+storage_type 'Array';
 
 =head1 NAME
 
@@ -149,6 +154,36 @@ sub finish {
     my ($self) = @_;
     $self->sth->finish if $self->sth;
 }
+
+
+=item columns_info
+
+Returns column info for the cursor.
+    my $cursor = $self->query_cursor( sql => $sql);
+    $cursor->execute;
+    $cursor->columns_info;
+
+=cut
+
+sub columns_info {
+    my ($self) = @_;
+    my $sth = $self->sth;
+    my $fileds = $sth->{NAME};
+    my $types = $sth->{TYPE};
+    my $precision  = $sth->{PRECISION};
+    my $nullable = $sth->{NULLABLE};
+    my $result = [];
+    for my $i (0 .. $#{$fileds}) {
+        push @$result, {
+            name     => $fileds->[$i],
+            sql_type => $types->[$i],
+            width    => $precision->[$i],
+            nullable => $nullable->[$i],
+        };
+    }
+    $result;
+}
+
 
 1;
 

@@ -21,7 +21,7 @@ my $connection = DBIx::Connection->new(
 ); 
 my $dialect = lc($connection->dbms_name);
 {
-    my $plsql_handler = new DBIx::PLSQLHandler(
+    my $plsql_handler = DBIx::PLSQLHandler->new(
         name        => 'test',
         connection  => $connection,
         plsql       => "BEGIN
@@ -53,8 +53,6 @@ my $dialect = lc($connection->dbms_name);
           binding => 'in'
         }
     }, 'should have bind variables');
-    
-    
     my $result_set = $plsql_handler->execute(var2 => 'abc', var3 => 'def');
     is_deeply($result_set, {
       'var1' => 'abcdef',

@@ -122,6 +122,22 @@ sub fetch_lob {
 }
 
 
+=item tables
+
+=cut
+
+sub tables {
+    my ($self, $connection, $schema) = @_;
+    my $sth = $connection->query_cursor(sql => "SHOW TABLES ". ($schema ? " FROM $schema" : ""));
+    my $resultset = $sth->execute();
+    my $result = [];
+    while ($sth->fetch()) {
+        push @$result, [%$resultset]->[-1];
+    }
+    $result;
+}
+
+
 
 1;
 

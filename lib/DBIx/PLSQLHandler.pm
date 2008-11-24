@@ -9,7 +9,7 @@ use base 'DBIx::SQLHandler';
 use Data::Dumper;
 use vars qw($VERSION);
 
-$VERSION = 0.02;
+$VERSION = 0.04;
 
 use constant DEFAULT_TYPE => 'SQL_VARCHAR';
 use constant DEFAULT_WIDTH => 32000;
@@ -84,6 +84,16 @@ In mysql procedure wraps the plsql block.
 In postgresql function wraps the plsql block.
 Name for the procedure/function wrapper is created as 'anonymous_' + $self->name 
 
+=cut
+
+storage_type ('Array', sub {
+    my ($class, %args) = @_;
+    my $specialisation_module = $args{connection}->load_module('PLSQL');
+    my $self = $specialisation_module->new(%args);
+    return $self;
+});
+
+
 =head2 ATTRIBUTES
 
 =over
@@ -93,7 +103,6 @@ Name for the procedure/function wrapper is created as 'anonymous_' + $self->name
 Plsql block
 
 =cut
-
     
 has '$.plsql';
 
@@ -157,16 +166,6 @@ has '$.default_width' => (default => DEFAULT_WIDTH);
 
 =over
 
-=item new
-
-=cut
-
-sub new {
-    my ($class, %args) = @_;
-    my $specialisation_module = $args{connection}->load_module('PLSQL');
-    my $self = $specialisation_module->new(%args);
-    return $self;
-}
 
 
 =item initialise

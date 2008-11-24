@@ -6,7 +6,9 @@ use strict;
 use Abstract::Meta::Class ':all';
 use vars qw($VERSION);
 
-$VERSION = 0.03;
+$VERSION = 0.04;
+
+storage_type 'Array';
 
 =head1 NAME
 
@@ -214,7 +216,7 @@ If bind variables are passed in the sql's place holders are replaced with the bi
 sub error_handler {
     my ($self, $bind_params) = @_;
     my $connection = $self->connection;
-    my $sql = $self->sql;
+    my $sql = $self->sql || '';
     if (defined($bind_params)) {
         $sql =~ s/\?/'$_'/  
           for map {ref($_) eq 'CODE' ? $_->() : defined $_ ? $_ : ''} @$bind_params

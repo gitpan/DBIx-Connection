@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 18;
 use DBI;
 
 BEGIN{
@@ -36,6 +36,13 @@ SKIP: {
     isa_ok($connection1, 'DBIx::Connection');
     ok($connection1->dbms_name, 'should have dbms name');
     
+    
+    my $tables = $connection1->tables;
+    ok(@$tables, 'should have tables');
+    my $columns = $connection->columns($tables->[0]);
+    ok(@$columns, 'should have columns');
+
+    
 
     $DBIx::Connection::CONNECTION_POOLING = 1;
     $DBIx::Connection::IDLE_THRESHOLD = 1;
@@ -68,6 +75,6 @@ SKIP: {
     is($pooled_connection2, $pooled_connection6, "retrive connection from the connection pool");
     ok($pooled_connection6->is_connected, "reconnected");
 
- 
+    
 
 }

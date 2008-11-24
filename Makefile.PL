@@ -7,7 +7,7 @@ WriteMakefile(
     VERSION_FROM => 'lib/DBIx/Connection.pm',
     DISTNAME     => 'DBIx-Connection',
     PREREQ_PM    => { 
-        'Abstract::Meta::Class' => 0,
+        'Abstract::Meta::Class' => 0.13,
 	'DBI'      	        => 0,
 	'Time::HiRes'  	        => 0,
 	'Test::Pod'		=> 0,

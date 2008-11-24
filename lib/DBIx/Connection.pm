@@ -11,8 +11,11 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.08;
+$VERSION = 0.09;
 $IDLE_THRESHOLD = 300;
+
+storage_type 'Array';
+
 
 =head1 NAME
 
@@ -399,6 +402,7 @@ Loads specyfic rdbms module.
         my $rdbms_module = $self->dbms_name . "::" . $module;
         return $loaded_modules{$rdbms_module} if $loaded_modules{$rdbms_module};
         my $module_name = __PACKAGE__ . "::\u$rdbms_module";
+        
         my $module_to_load =  $module_name;
         $module_to_load =~ s/::/\//g;
         eval { require "${module_to_load}.pm" };
@@ -931,6 +935,8 @@ sub primary_key_info {
     my ($self, $table_name, $schema) = @_;
     my $sth = $self->dbh->primary_key_info(undef, $schema, $table_name);
     my $result = $sth ? $sth->fetchall_arrayref : undef;
+
+    
     if($result && ! @$result) {
         my $module_name = $self->load_module('SQL');
         if($module_name && $module_name->can('primary_key_info')) {
@@ -958,7 +964,7 @@ Returns primary key columns
 sub primary_key_columns {
     my ($self, $table_name) = @_;
     my ($schema, $table) = ($table_name =~ m/([^\.]+)\.(.+)/);
-    my $info = $self->primary_key_info($schema ? ($schema, $table) : ($table_name));
+    my $info = $self->primary_key_info($schema ? ($table, $schema) : ($table_name));
     map { $_->[3] } @$info;
 }
 
@@ -1069,6 +1075,41 @@ sub reset_sequence {
 }
 
 
+
+=item tables
+
+Returns list of schme tables;
+Takes optionally schema name.
+
+=cut
+
+sub tables {
+    my ($self, $schema) = @_;
+    my $tables;
+    my $module_name = $self->load_module('SQL');
+    if($module_name && $module_name->can('tables')) {
+        $tables = $module_name->tables($self, $schema);
+    }
+    $tables;
+}
+
+
+
+=item columns
+
+Returns columns for passed in table.
+
+=cut
+
+sub columns {
+    my ($self, $table, $schema) = @_;
+    my $sql = "SELECT * FROM " . ($schema ? "${schema}." : '') . $table . " WHERE 1 = 0";
+    my $cursor = $self->query_cursor( sql => $sql);
+    $cursor->execute;
+    $cursor->columns_info;
+}
+
+
 =item record_action_start_time
 
 Records database operation start time.
@@ -1126,7 +1167,6 @@ sub format_usage_report {
     foreach my $k (sort keys %$tracking) {
         $footer .= "$i: \n " . $k;
         $body .=  "SQL id $i:\n";
-        
         my $item = $tracking->{$k};
         foreach my $j(sort keys %$item) {
             $body  .= "    $j => " ;
@@ -1212,6 +1252,7 @@ sub update_lob {
         warn "not implemented ${module_name}::update_lob";
     }
 }
+
 
 =item fetch_lob
 

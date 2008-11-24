@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                DBIx-Connection
-version:             0.08
+version:             0.09
 author:
   - 'Adrian Witas <adrian@webapp.strefa.pl>'
 abstract: Simple database interface.
@@ -11,7 +11,7 @@ generated_by:        ExtUtils::MakeMaker version 6.3201
 distribution_type:   module
 requires:
     perl:                          5.6.1    
-    Abstract::Meta::Class:         0
+    Abstract::Meta::Class:         0.13
     Carp:                          0
     DBI:                           0
     Test::Pod:                     0

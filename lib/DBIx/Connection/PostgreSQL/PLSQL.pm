@@ -10,7 +10,9 @@ use base qw(DBIx::PLSQLHandler);
 
 use vars qw($VERSION);
 
-$VERSION = 0.02;
+$VERSION = 0.03;
+
+storage_type 'Array';
 
 =head1 NAME
 
