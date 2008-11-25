@@ -1,6 +1,8 @@
 Revision history for Perl extension DBIx:Connection.
 
-
+0.10 Mon Nov 24 2008
+    - fix test for Oracle
+    
 0.09  Sun Nov 22 2008
     - Changed objects to array based, 
     - Added tables, columns methods

@@ -38,10 +38,14 @@ SKIP: {
     
     
     my $tables = $connection1->tables;
-    ok(@$tables, 'should have tables');
-    my $columns = $connection->columns($tables->[0]);
-    ok(@$columns, 'should have columns');
-
+    SKIP: {
+        skip("no table in the schema", 2)
+        unless $tables;
+        ok(@$tables, 'should have tables');
+        my $columns = $connection->columns($tables->[0]);
+        ok(@$columns, 'should have columns');
+    }
+    
     
 
     $DBIx::Connection::CONNECTION_POOLING = 1;

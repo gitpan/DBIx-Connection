@@ -10,6 +10,7 @@ WriteMakefile(
         'Abstract::Meta::Class' => 0.13,
 	'DBI'      	        => 0,
 	'Time::HiRes'  	        => 0,
+	'DBI::Const::GetInfoType' => 0,
 	'Test::Pod'		=> 0,
 	'Test::Pod::Coverage'	=> 0,
         'Carp'                  => 0,

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                DBIx-Connection
-version:             0.09
+version:             0.10
 author:
   - 'Adrian Witas <adrian@webapp.strefa.pl>'
 abstract: Simple database interface.
@@ -14,6 +14,7 @@ requires:
     Abstract::Meta::Class:         0.13
     Carp:                          0
     DBI:                           0
+    DBI::Const::GetInfoType:       0
     Test::Pod:                     0
     Test::Pod::Coverage:           0
     Time::HiRes:                   0

@@ -11,7 +11,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.09;
+$VERSION = 0.10;
 $IDLE_THRESHOLD = 300;
 
 storage_type 'Array';
@@ -1012,7 +1012,7 @@ Returns true if table exists in database schema
 sub has_table {
     my ($self, $table_name) = @_;
     my $result = $self->table_info($table_name);
-    !! @$result;
+    !! $result &&  @$result;
 }
 
 
