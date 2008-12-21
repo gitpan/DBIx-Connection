@@ -1,5 +1,16 @@
 Revision history for Perl extension DBIx:Connection.
 
+0.11 Sun Dec 21 2008
+    - added schema specific methods:
+      - foreign_key_info
+      - foreign_key_columns
+      - index_info
+      - table_info
+      - tables_info
+      - trigger_info
+      - routine_info
+      - has_view
+
 0.10 Mon Nov 24 2008
     - fix test for Oracle
     

@@ -193,6 +193,21 @@ sub initialise_bind_variables {
     my $plsql = $self->plsql;
     my $bind_variables = $self->bind_variables;
     $plsql =~ s/\'[^\']*\'//g;
+    
+    while ($plsql =~ s/into\s:(\w+)//i) {
+        my $bind_variable = $1;
+        my $out_flag = 1;
+        my $variable = $bind_variables->{$bind_variable};
+        if ($variable && $variable->{binding}) {
+            $variable->{binding} = 'inout' if ($out_flag && $variable->{binding} eq 'in');
+            
+        } else {
+            $variable = $bind_variables->{$bind_variable} = $self->default_variable_info
+                unless $variable;
+            $variable->{binding} = $out_flag ? 'out' : 'in';
+        }
+    }
+    
     while ($plsql =~ s/:(\w+)\s*(:*)//) {
         my $bind_variable = $1;
         my $out_flag = $2;

@@ -6,12 +6,13 @@ use DBI;
 use DBI::Const::GetInfoType;
 use Abstract::Meta::Class ':all';
 use DBIx::SQLHandler;
+use DBIx::PLSQLHandler;
 use DBIx::QueryCursor;
 use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.10;
+$VERSION = 0.11;
 $IDLE_THRESHOLD = 300;
 
 storage_type 'Array';
@@ -46,7 +47,7 @@ DBIx::Connection - Simple database interface.
 
 
     my $cursor = $connection->query_cursor(sql => "select * from emp where deptno > ?", name => 'emp_select');
-    my $dataset = $cursor->execute(20);
+    my $dataset = $cursor->execute([20]);
     while ($cursor->fetch) {
         #do some stuff ...
         print $_ . " => " . $dataset->{$_}
@@ -55,7 +56,7 @@ DBIx::Connection - Simple database interface.
 
     {
         my $cursor = $connection->find_query_cursor('emp_select');
-        my $dataset = $cursor->execute(20);
+        my $dataset = $cursor->execute([20]);
         ...
     }
 
@@ -157,7 +158,6 @@ plsql handlers - BEGIN ... END
 
     my $plsql_handler = $connection->plsql_handler(
         name        => 'test_block',
-        connection  => $connection,
         plsql       => "BEGIN
         :var1 := :var2 + :var3;
         END;",
@@ -212,7 +212,7 @@ Automatic reporting:
 
 Error handler customization:
 
-It supports eroror handler customization.
+It supports error handler customization.
 
     my $error_handler = sub {
         my (self, $message, $sql_handler) = @_;
@@ -328,7 +328,7 @@ has '$.action_start_time';
 
 =item collect_statistics
 
-Flag that indicate if statisitcs are collected.
+Flag that indicate if statistics are collected.
 
 =cut
 
@@ -364,7 +364,6 @@ has '$.is_connected';
 has '$.last_in_use';
 
 
-
 =item no_cache
 
 Prepares statements each time, otherwise use prepare statement once and reuse it
@@ -391,7 +390,7 @@ has '$._active_transaction';
 
 =item load_module
 
-Loads specyfic rdbms module.
+Loads specific rdbms module.
 
 =cut
 
@@ -464,7 +463,7 @@ sub do {
 
 =item sql_handler
 
-Returns a new sql handeler instance.
+Returns a new sql handler instance.
 
     my $sql_handler = $connection->sql_handler(
         name => 'emp_ins'
@@ -557,7 +556,7 @@ sub query_cursor {
 =item find_query_cursor
 
 Returns cached query cursor.
-Takes query cursor name as parmeter.
+Takes query cursor name as parameter.
 
     my $cursor = $connection->find_query_cursor('my_cusror');
     my $result_set = $cursor->execute([1]);
@@ -572,7 +571,7 @@ sub find_query_cursor {
 
 =item plsql_handler
 
-Returns a new plsql handeler instance <DBIx::PLSQLHandler>.
+Returns a new plsql handler instance <DBIx::PLSQLHandler>.
 Takes DBIx::PLSQLHandler constructor parameters.
 
     my $plsql_handler = $connection->plsql_handler(
@@ -593,14 +592,14 @@ Takes DBIx::PLSQLHandler constructor parameters.
 
 sub plsql_handler {
     my ($self, %args) = @_;
-    my $name = $args{name} || $args{sql};
+    $args{name} = $args{plsql} unless($args{name});
+    my $name = $args{name};
     my $result  = $self->_plsql_handler($name);
     if(! $result || $self->no_cache) {
         $result = DBIx::PLSQLHandler->new(connection  => $self, %args);
         $self->_plsql_handler($name, $result);
     }
     $result;
-    
 }
 
 
@@ -647,7 +646,7 @@ Begins transaction.
 sub begin_work {
     my ($self) = @_;
     my $dbh = $self->dbh;
-    confess "connection has allready active transaction "
+    confess "connection has already active transaction "
         if $self->_active_transaction;
     $self->_active_transaction(1);
     my $result = $dbh->begin_work() 
@@ -693,7 +692,7 @@ sub rollback {
 
 =item initialise
  
-Initialises connection.
+Initializes connection.
 
 =cut
 
@@ -917,17 +916,8 @@ sub dbms_version {
 Returns primary key information, takes table name
 Return array ref (DBI::primary_key_info)
 
-TABLE_CAT: The catalog identifier. This field is NULL (undef) if not applicable to the data source, which is often the case. This field is empty if not applicable to the table.
-
-TABLE_SCHEM: The schema identifier. This field is NULL (undef) if not applicable to the data source, and empty if not applicable to the table.
-
-TABLE_NAME: The table identifier.
-
-COLUMN_NAME: The column identifier.
-
-KEY_SEQ: The column sequence number (starting with 1). Note: This field is named ORDINAL_POSITION in SQL/CLI.
-
-PK_NAME The primary key constraint identifier. This field is NULL (undef) if not applicable to the data source.
+    my $pk_info = $connection->primary_key_info($table);
+    my $pk_info = $connection->primary_key_info($table, $schema);
 
 =cut
 
@@ -935,9 +925,9 @@ sub primary_key_info {
     my ($self, $table_name, $schema) = @_;
     my $sth = $self->dbh->primary_key_info(undef, $schema, $table_name);
     my $result = $sth ? $sth->fetchall_arrayref : undef;
-
     
-    if($result && ! @$result) {
+    
+    if (! $sth || (lc($self->dbms_name) eq 'oracle')) {
         my $module_name = $self->load_module('SQL');
         if($module_name && $module_name->can('primary_key_info')) {
             my $sql = $module_name->primary_key_info($schema);
@@ -962,11 +952,81 @@ Returns primary key columns
 =cut
 
 sub primary_key_columns {
-    my ($self, $table_name) = @_;
-    my ($schema, $table) = ($table_name =~ m/([^\.]+)\.(.+)/);
+    my ($self, $table_name, $schema) = @_;
+    ($schema, my $table) = ($table_name =~ m/([^\.]+)\.(.+)/);
     my $info = $self->primary_key_info($schema ? ($table, $schema) : ($table_name));
     map { $_->[3] } @$info;
 }
+
+
+
+=item foreign_key_info
+
+Return foreign key info.
+
+    my $fk_info = $connection->primary_key_info($table, $ref_table);
+    my $fk_info = $connection->primary_key_info($table, $ref_table, $schema, $ref_schema);
+
+=cut
+
+sub foreign_key_info {
+    my ($self, $table_name, $reference_table_name, $schema, $reference_schema) = @_;
+    my $result;
+    my $sth;
+    eval {
+        my $sth = $self->dbh->foreign_key_info( undef, $schema, $table_name,
+            undef, $reference_schema, $reference_table_name);
+        $result = $sth ? $sth->fetchall_arrayref : undef;
+    };
+    
+    if (! $sth || (lc($self->dbms_name) eq 'oracle')) {
+        my $module_name = $self->load_module('SQL');
+        if($module_name && $module_name->can('foreign_key_info')) {
+            $result = $module_name->foreign_key_info($self, $table_name, $reference_table_name, $schema, $reference_schema);
+        }
+    }
+    return $result;
+}
+
+
+=item foreign_key_columns
+
+Returns foreign key columns
+
+    my @columns = $connection->foreign_key_columns($table, $ref_table);
+    my @columns = $connection->foreign_key_columns($table, $ref_table, $schema, $ref_schema);
+
+
+=cut
+
+sub foreign_key_columns {
+    my $self = shift;
+    my $info = $self->foreign_key_info(@_);
+    map { $_->[7] } @$info;    
+}
+    
+
+
+=item index_info
+
+Returns index data structure for the specified index.
+
+    my $index_info = $connection->index_info($index);
+    my $index_info = $connection->index_info($index, $schema);
+    my $index_info = $connection->index_info($index, $schema, $table);
+
+=cut
+
+sub index_info {
+    my ($self, $index, $schema, $table) = @_;
+    my $result;
+    my $module_name = $self->load_module('SQL');
+    if($module_name && $module_name->can('index_info')) {
+        $result = $module_name->index_info($self, $index, $schema, $table);
+    }
+    return $result;
+}
+
 
 
 =item table_info
@@ -974,20 +1034,90 @@ sub primary_key_columns {
 Returns table info.
 See also DBI::table_info
 
+    my $table_info = $db_connection->table_info($table);
+    my $table_info = $db_connection->table_info($table, $schema);
+
 =cut
 
 sub table_info {
-    my ($self, $table_name) = @_;
-    my $sth = $self->dbh->table_info(undef, undef, $table_name, 'TABLE');
+    my ($self, $table_name, $schema, $type) = @_;
+    $type ||= 'TABLE';
+    my $sth = $self->dbh->table_info(undef, $schema, $table_name, $type);
     my $result = $sth->fetchall_arrayref;
-    unless (@$result) {
+    
+    if(! $result || !@$result) {
         my $module_name = $self->load_module('SQL');
-        if ($module_name && $module_name->can('has_table')) {
-            $result = $module_name->has_table($self, $table_name);
-
-        } 
+        if ($module_name && (my $code_ref = $module_name->can('table_info'))) {
+            $result = $code_ref->($module_name, $self, $table_name, $schema, $type);
+        }
     }
     $result;
+}
+
+
+=item trigger_info
+
+Returns trigger info.
+
+    my $trigger_info = $connection->trigger_info($trigger);
+    my $trigger_info = $connection->trigger_info($trigger, $schema);
+
+Result hash ref has the following keys
+    
+    trigger_name 
+    table_name
+    trigger_schema 
+    description
+    trigger_body
+
+=cut
+
+sub trigger_info {
+    my ($self, $trigger, $schema) = @_;
+    my $result;
+    my $module_name = $self->load_module('SQL');
+    if ($module_name && (my $code_ref = $module_name->can('trigger_info'))) {
+            $result = $code_ref->($module_name, $self, $trigger, $schema);
+    }
+    return $result;
+}
+
+
+=item routine_info
+
+Returns array ref of the following hash ref structure:
+
+    'return_type' => 
+    'routine_schema' => 
+    'routine_name'  => 
+    'routine_arguments'  => 
+    'routine_body'  =>
+    'routine_type'  => 'FUNCTION|PROCEDURE'
+    'args' => [
+        {
+        mode => ....,
+        name => ...,
+        type => ...
+        },
+        ...
+    ],
+
+    my $routines_info = $connection->routine_info($function, $schema);
+    my $routines_info = $connection->routine_info($function);
+
+Takes procedure/function name as parameter.
+
+=cut
+
+
+sub routine_info {
+    my ($self, $function, $schema) = @_;
+    my $result;
+    my $module_name = $self->load_module('SQL');
+    if ($module_name && (my $code_ref = $module_name->can('routine_info'))) {
+            $result = $code_ref->($module_name, $self, $function, $schema);
+    }
+    return $result;
 }
 
 =item set_session_variables
@@ -1005,13 +1135,32 @@ sub set_session_variables {
 
 =item has_table
 
-Returns true if table exists in database schema
+Returns true if the specified table exists
+
+    $connection->has_table($table, $schema);
+    $connection->has_table($table);
 
 =cut
 
 sub has_table {
-    my ($self, $table_name) = @_;
-    my $result = $self->table_info($table_name);
+    my ($self, $table_name, $schema) = @_;
+    my $result = $self->table_info($table_name, $schema);
+    !! $result &&  @$result;
+}
+
+
+=item has_view
+
+Returns true if the specified view exists 
+
+    $connection->has_table($table, $schema);
+    $connection->has_table($table);
+
+=cut
+
+sub has_view {
+    my ($self, $view, $schema) = @_;
+    my $result = $self->table_info($view, $schema, 'VIEW');
     !! $result &&  @$result;
 }
 
@@ -1027,8 +1176,10 @@ sub has_sequence {
     my $result;
     my $module_name = $self->load_module('SQL');
     if($module_name && $module_name->can('has_sequence')) {
-        my $record = $self->record($module_name->has_sequence($self->username), $sequence_name);
-        $result = $record->{sequence_name};    
+        my $sql = $module_name->has_sequence($self->username);
+        my $record = $self->record($sql, $sequence_name);
+        $result = $record->{sequence_name};
+        
     } else {
         warn "not implemented ${module_name}::has_sequence";
     }
@@ -1038,7 +1189,7 @@ sub has_sequence {
 
 =item sequence_value
 
-Returns sequence's value. Takes seqence name.
+Returns sequence's value. Takes sequence name.
 
     $connection->sequence_value('emp_seq');
 
@@ -1075,39 +1226,72 @@ sub reset_sequence {
 }
 
 
+=item tables_info
 
-=item tables
-
-Returns list of schme tables;
+Returns list of schema tables;
 Takes optionally schema name.
 
 =cut
 
-sub tables {
+sub tables_info {
     my ($self, $schema) = @_;
     my $tables;
     my $module_name = $self->load_module('SQL');
-    if($module_name && $module_name->can('tables')) {
-        $tables = $module_name->tables($self, $schema);
+    if ($module_name && $module_name->can('tables_info')) {
+        $tables = $module_name->tables_info($self, $schema);
     }
     $tables;
 }
-
 
 
 =item columns
 
 Returns columns for passed in table.
 
+    $connection->columns($table);
+    $connection->columns($table, $schema);
+
 =cut
 
 sub columns {
     my ($self, $table, $schema) = @_;
+    my $dbh = $self->dbh;
     my $sql = "SELECT * FROM " . ($schema ? "${schema}." : '') . $table . " WHERE 1 = 0";
-    my $cursor = $self->query_cursor( sql => $sql);
-    $cursor->execute;
-    $cursor->columns_info;
+    my $result = [];
+    eval {
+        my $cursor = $self->query_cursor( sql => $sql);
+        $cursor->execute;
+        $result = $cursor->columns_info;
+        for my $column (@$result) {
+            $column->{type_info} = $dbh->type_info($column->{sql_type});
+
+        }
+    };
+    return $result;
 }
+
+
+=item column
+
+Returns the hash ref to column info for given table.
+
+    $connection->column($table, $column);
+    $connection->column($table, $column, $schema);
+
+=cut
+
+sub column {
+    my ($self, $table, $column, $schema) =  @_;
+    my $columns = $self->columns($table, $schema);
+    my %columns =  map { lc($_->{name}) => {%{$_}} }  @$columns;
+    my $result = $columns{$column};
+    my $module_name = $self->load_module('SQL');
+    if ($module_name && $module_name->can('column_info')) {
+        $module_name->column_info($self, $table, $column, $schema, $result);
+    }
+    return $result;
+}
+
 
 
 =item record_action_start_time
@@ -1277,7 +1461,7 @@ sub fetch_lob {
 
 =item _where_clause
 
-Returns Where caluse sql fragment, takes hash ref of fields values.
+Returns Where clause sql fragment, takes hash ref of fields values.
 
 =cut
 

@@ -11,7 +11,7 @@ BEGIN{
 
 SKIP: {
     
-    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 15)
+    skip('missing env varaibles DB_TEST_CONNECTION, DB_TEST_USERNAME DB_TEST_PASSWORD', 17)
       unless $ENV{DB_TEST_CONNECTION};
 
     my $connection = DBIx::Connection->new(
@@ -37,12 +37,12 @@ SKIP: {
     ok($connection1->dbms_name, 'should have dbms name');
     
     
-    my $tables = $connection1->tables;
+    my $tables = $connection1->tables_info;
     SKIP: {
         skip("no table in the schema", 2)
         unless $tables;
         ok(@$tables, 'should have tables');
-        my $columns = $connection->columns($tables->[0]);
+        my $columns = $connection->columns($tables->[0]->{table_name});
         ok(@$columns, 'should have columns');
     }
     
