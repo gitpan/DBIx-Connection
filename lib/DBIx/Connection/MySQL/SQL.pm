@@ -7,7 +7,7 @@ use vars qw($VERSION);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.04;
+$VERSION = 0.05;
 
 =head1 NAME
 
@@ -234,6 +234,7 @@ sub index_info {
     my ($self, $connection, $index, $schema, $table) = @_;
     return undef
         unless $table;
+    return unless $connection->has_table($table);
     $schema ||= $connection->username;
     my $sql = sprintf($sql{index_info}, lc($table), lc($connection->username), lc($index));
     my $cursor = $connection->query_cursor(sql => $sql);

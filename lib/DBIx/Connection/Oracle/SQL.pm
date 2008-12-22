@@ -7,7 +7,8 @@ use vars qw($VERSION $LOB_MAX_SIZE);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.05;
+$VERSION = 0.06;
+
 $LOB_MAX_SIZE = (1024 * 1024 * 1024);
 
 =head1 NAME
@@ -141,8 +142,8 @@ our %sql = (
             c.column_name,
             c.column_position
         FROM all_ind_columns c
-        JOIN all_indexes i ON i.index_name = c.index_name
-        WHERE i.uniqueness = 'UNIQUE' AND c.column_position = 1 AND c.owner = UPPER('%s')
+        JOIN all_indexes i ON i.index_name = c.index_name AND c.index_owner = i.owner
+        WHERE i.uniqueness = 'UNIQUE' AND c.column_position = 1 AND c.index_owner = UPPER('%s')
         AND c.table_name = ? AND c.column_name = ?
     },
 
@@ -300,7 +301,7 @@ sub table_info {
     $type = lc($type);
     my $sql = ! $schema 
         ? sprintf($sql{basic_obejct_info}, $type, $type, $type)
-        : sprintf($sql{schema_obejct_info}, $type, $type, $type, $schema);
+        : sprintf($sql{schema_obejct_info}, $type, $type, $type, uc $schema);
     my $record = $connection->record($sql, uc $table_name);
     $result = [undef,$connection->name, $record->{"${type}_name"}, undef]
         if $record->{"${type}_name"};

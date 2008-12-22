@@ -12,7 +12,8 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.11;
+$VERSION = 0.12;
+
 $IDLE_THRESHOLD = 300;
 
 storage_type 'Array';
@@ -1077,7 +1078,7 @@ sub trigger_info {
     my $result;
     my $module_name = $self->load_module('SQL');
     if ($module_name && (my $code_ref = $module_name->can('trigger_info'))) {
-            $result = $code_ref->($module_name, $self, $trigger, $schema);
+        $result = $code_ref->($module_name, $self, $trigger, $schema);
     }
     return $result;
 }
@@ -1115,7 +1116,7 @@ sub routine_info {
     my $result;
     my $module_name = $self->load_module('SQL');
     if ($module_name && (my $code_ref = $module_name->can('routine_info'))) {
-            $result = $code_ref->($module_name, $self, $function, $schema);
+        $result = $code_ref->($module_name, $self, $function, $schema);
     }
     return $result;
 }

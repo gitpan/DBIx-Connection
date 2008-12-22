@@ -1,5 +1,8 @@
 Revision history for Perl extension DBIx:Connection.
 
+0.12 Mon Dec 22 2008
+    - index_info fix for mysql, oracle
+
 0.11 Sun Dec 21 2008
     - added schema specific methods:
       - foreign_key_info
