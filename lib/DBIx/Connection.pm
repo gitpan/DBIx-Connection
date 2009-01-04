@@ -12,7 +12,7 @@ use Carp 'confess';
 use vars qw($VERSION $CONNECTION_POOLING $IDLE_THRESHOLD);
 use Time::HiRes qw(gettimeofday tv_interval);
 
-$VERSION = 0.12;
+$VERSION = 0.13;
 
 $IDLE_THRESHOLD = 300;
 
@@ -182,7 +182,7 @@ Connection is cached by its name.
 
     $connection = DBIx::Connection->connection('my_connection_name');
 
-RDBMS session variables supports.
+RDBMS session variables support.
 
     my $databaseHandler = DBIx::Connection->new(
         name                 => 'my_connection_name',
@@ -313,7 +313,7 @@ Callback that overwrites default error_handler on SQLHandler object.
 has '&.custom_error_handler';
 
 
-=item stats
+=item tracking
 
 =cut
 
@@ -1005,7 +1005,21 @@ sub foreign_key_columns {
     my $info = $self->foreign_key_info(@_);
     map { $_->[7] } @$info;    
 }
-    
+
+
+=item table_foreign_key_info
+
+=cut
+
+sub table_foreign_key_info {
+    my ($self, $table_name, $schema) = @_;
+    my $module_name = $self->load_module('SQL');
+    my $result;
+    if($module_name && $module_name->can('table_foreign_key_info')) {
+        $result = $module_name->table_foreign_key_info($self, $table_name, $schema);
+    }
+    return $result;
+}
 
 
 =item index_info
@@ -1028,6 +1042,25 @@ sub index_info {
     return $result;
 }
 
+
+=item table_indexes_info
+
+Returns indexes data structure for the specified table.
+
+    my $indexes_info = $connection->index_info($table);
+    my $indexes_info = $connection->index_info($table, $schema);
+
+=cut
+
+sub table_indexes_info {
+    my ($self, $table, $schema) = @_;
+    my $result;
+    my $module_name = $self->load_module('SQL');
+    if($module_name && $module_name->can('table_indexes_info')) {
+        $result = $module_name->table_indexes_info($self, $table, $schema);
+    }
+    return $result;
+}
 
 
 =item table_info
@@ -1245,7 +1278,7 @@ sub tables_info {
 }
 
 
-=item columns
+=item columns_info
 
 Returns columns for passed in table.
 
@@ -1254,7 +1287,7 @@ Returns columns for passed in table.
 
 =cut
 
-sub columns {
+sub columns_info {
     my ($self, $table, $schema) = @_;
     my $dbh = $self->dbh;
     my $sql = "SELECT * FROM " . ($schema ? "${schema}." : '') . $table . " WHERE 1 = 0";
@@ -1271,21 +1304,33 @@ sub columns {
     return $result;
 }
 
+*columns = \&columns_info;
 
-=item column
+
+=item column_info
 
 Returns the hash ref to column info for given table.
 
     $connection->column($table, $column);
     $connection->column($table, $column, $schema);
 
+    Column info hash ref contains the following keys
+        'unique' => '1|0',
+        'width' => ,
+        'name' => '',
+        'default' => '',
+        'sql_type' => ,
+        'nullable' => ,
+        'db_type' => '',
+        'default' => '',
+
 =cut
 
-sub column {
+sub column_info {
     my ($self, $table, $column, $schema) =  @_;
     my $columns = $self->columns($table, $schema);
     my %columns =  map { lc($_->{name}) => {%{$_}} }  @$columns;
-    my $result = $columns{$column};
+    my $result = $columns{lc($column)};
     my $module_name = $self->load_module('SQL');
     if ($module_name && $module_name->can('column_info')) {
         $module_name->column_info($self, $table, $column, $schema, $result);
@@ -1293,6 +1338,8 @@ sub column {
     return $result;
 }
 
+
+*column = \&column_info;
 
 
 =item record_action_start_time

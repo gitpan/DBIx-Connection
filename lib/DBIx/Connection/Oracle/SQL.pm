@@ -122,6 +122,39 @@ our %sql = (
         ORDER BY c.column_position
     },
     
+
+    table_indexes_info => q{ 
+        SELECT 
+            c.index_name,
+            LOWER(c.table_name) AS table_name,
+            LOWER(c.column_name) AS column_name,
+            c.column_position,
+            (CASE WHEN p.constraint_name IS NOT NULL THEN 1 ELSE 0 END) AS is_pk,
+            (CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END) AS is_unique,
+            i.index_type
+        FROM user_ind_columns c
+        JOIN user_indexes i ON i.index_name = c.index_name
+        LEFT JOIN user_constraints p ON (p.index_name = c.index_name AND p.constraint_type = 'P')
+        WHERE c.table_name = UPPER(?)
+        ORDER BY c.column_position
+    },
+
+    schema_table_indexes_info => q{ 
+        SELECT 
+            c.index_name,
+            LOWER(c.table_name) AS table_name,
+            LOWER(c.column_name) AS column_name,
+            c.column_position,
+            (CASE WHEN p.constraint_name IS NOT NULL THEN 1 ELSE 0 END) AS is_pk,
+            (CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END) AS is_unique,
+            i.index_type
+        FROM all_ind_columns c
+        JOIN all_indexes i ON i.index_name = c.index_name AND i.owner = c.index_owner AND i.owner = '%s'
+        LEFT JOIN all_constraints p ON (p.index_name = c.index_name AND p.constraint_type = 'P' AND i.owner = p.owner)
+        WHERE c.table_name = UPPER(?)
+        ORDER BY c.column_position
+    },
+
     unique_index_column => q{
         SELECT 
             c.index_name,
@@ -205,6 +238,40 @@ our %sql = (
         ORDER BY fkc.position
     },
     
+    table_foreign_key_info => q{
+       SELECT
+            fk.constraint_name AS fk_name, 
+            LOWER(fk.table_name) AS fk_table_name,
+            LOWER(fkc.column_name) AS fk_column_name,
+            fkc.position AS fk_position,
+            pk.constraint_name AS pk_name, 
+            LOWER(pk.table_name) AS pk_table_name,
+            LOWER(pkc.column_name) AS pk_column_name,
+            pkc.position AS pk_position
+        FROM user_cons_columns fkc
+        JOIN user_constraints fk ON (fkc.constraint_name = fk.constraint_name AND fk.constraint_type='R' AND fk.table_name = ?) 
+        JOIN user_constraints pk ON (pk.constraint_name = fk.r_constraint_name AND pk.constraint_type='P')
+        JOIN user_cons_columns pkc ON (pkc.constraint_name = pk.constraint_name AND pkc.position = fkc.position)
+        ORDER BY fkc.position
+    },
+    
+    schema_table_foreign_key_info => q{
+       SELECT
+            fk.constraint_name AS fk_name, 
+            LOWER(fk.table_name) AS fk_table_name,
+            LOWER(fkc.column_name) AS fk_column_name,
+            fkc.position AS fk_position,
+            pk.constraint_name AS pk_name, 
+            LOWER(pk.table_name) AS pk_table_name,
+            LOWER(pkc.column_name) AS pk_column_name,
+            pkc.position AS pk_position
+        FROM all_cons_columns fkc
+        JOIN all_constraints fk ON (fkc.constraint_name = fk.constraint_name AND fk.constraint_type='R' AND fkc.owner = fk.owner AND fk.owner = '%s' AND fk.table_name = ?) 
+        JOIN all_constraints pk ON (pk.constraint_name = fk.r_constraint_name AND pk.constraint_type='P' AND pk.owner = fk.owner)
+        JOIN all_cons_columns pkc ON (pkc.constraint_name = pk.constraint_name AND pkc.position = fkc.position AND pk.owner = pkc.owner)
+        ORDER BY fkc.position
+    },
+    
     trigger_info => q{
         SELECT 
             t.trigger_name,
@@ -215,7 +282,7 @@ our %sql = (
         FROM user_triggers t
         WHERE t.trigger_name = ?
     },
-    
+        
     schema_trigger_info => q {
         SELECT 
             t.trigger_name,
@@ -371,6 +438,40 @@ sub foreign_key_info {
 
 
 
+=item table_foreign_key_info
+
+=cut
+
+sub table_foreign_key_info {
+    my ($self, $connection, $table_name, $schema) = @_;
+    my $sql = $schema ? sprintf($sql{schema_table_foreign_key_info}, uc $schema)
+    : $sql{table_foreign_key_info};
+    my $cursor = $connection->query_cursor(sql => $sql);
+    my $record = $cursor->execute([uc($table_name)]);
+    my $owner = lc $connection->username;
+    my %result;
+    while ($cursor->fetch) {
+        my $id = $record->{fk_name};
+        push @{$result{$id}}, [
+            undef,
+            ($record->{pk_schema} || $owner),
+            $record->{pk_table_name},
+            $record->{pk_column_name},
+            undef, 
+            ($record->{fk_schema} || $owner),
+            $record->{fk_table_name},
+            $record->{fk_column_name},
+            $record->{fk_position},
+            undef,
+            undef,
+            $record->{fk_name},
+            $record->{pk_name},
+        ];
+    }
+    return %result ? [values %result] : undef;
+}
+
+
 =item column_info
 
 =cut
@@ -380,6 +481,7 @@ sub column_info {
     my $sql = $schema ? sprintf($sql{'schema_column_info'}, uc $schema) : $sql{'column_info'};
     my $record = $connection->record($sql, $table, $column);
     $result->{db_type} = $record->{typname};
+    $result->{comment} = $record->{description};
     $result->{default} = ! $record->{default_length} ? '' :
         $connection->fetch_lob(user_tab_cols => 'data_default', {column_name => uc($column), table_name => uc($table)}, 'default_length');
     $self->unique_index_column($connection, $table, $column, $schema, $result);
@@ -416,6 +518,26 @@ sub index_info {
         push @result, {%$record};
     }
     return \@result;
+}
+
+
+
+=item table_indexes_info
+
+=cut
+
+sub table_indexes_info {
+    my ($self, $connection, $table, $schema) = @_;
+    my $sql = $schema
+        ?  sprintf($sql{schema_table_indexes_info}, uc $schema)
+        :  $sql{table_indexes_info};
+    my $cursor = $connection->query_cursor(sql => $sql);
+    my $record = $cursor->execute([$table]);
+    my %result;
+    while($cursor->fetch) {
+        push @{$result{$record->{index_name}}}, {%$record};
+    }
+    return %result ? [values %result] : undef;
 }
 
 

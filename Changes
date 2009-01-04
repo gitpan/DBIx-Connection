@@ -1,5 +1,8 @@
 Revision history for Perl extension DBIx:Connection.
 
+0.13 Sun Jan 04 2009
+    - added table_foreign_key_info, table_indexex_info method, fix postgresql lob update to null
+
 0.12 Mon Dec 22 2008
     - index_info fix for mysql, oracle
 

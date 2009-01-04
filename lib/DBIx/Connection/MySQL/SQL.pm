@@ -7,7 +7,7 @@ use vars qw($VERSION);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.05;
+$VERSION = 0.06;
 
 =head1 NAME
 
@@ -89,8 +89,32 @@ our %sql = (
     WHERE c.table_name = ? AND ct.table_name = ?
     },
 
+    table_foreign_key_info => q{
+    SELECT 
+        c.constraint_name AS fk_name,
+        c.column_name AS fk_column_name, 
+        c.ordinal_position AS fk_position,
+        c.table_name AS fk_table_name,
+        
+        ct.constraint_name AS pk_name,
+        ct.column_name AS pk_column_name, 
+        ct.ordinal_position AS pk_position,
+        ct.table_name AS pk_table_name
+    FROM information_schema.KEY_COLUMN_USAGE c
+    JOIN information_schema.TABLE_CONSTRAINTS t ON t.constraint_name = c.constraint_name 
+    AND t.constraint_schema = c.constraint_schema AND  t.CONSTRAINT_TYPE = 'FOREIGN KEY' AND c.constraint_schema = '%s'
+    JOIN information_schema.KEY_COLUMN_USAGE ct ON ct.table_name = c.referenced_table_name 
+    AND ct.table_schema = c.referenced_table_schema AND c.ordinal_position = ct.ordinal_position AND ct.constraint_schema = c.constraint_schema 
+    AND ct.constraint_name = 'PRIMARY'
+    WHERE c.table_name = ?
+    },
+    
     index_info => q{     
         show index FROM %s FROM %s WHERE lower(key_name) = '%s'
+    },
+
+    table_indexex_info => q{     
+        show index FROM %s FROM %s
     },
     
     trigger_info => q{
@@ -254,6 +278,34 @@ sub index_info {
     return \@result;
 }
 
+=item table_indexes_info
+
+=cut
+
+sub table_indexes_info {
+    my ($self, $connection, $table, $schema) = @_;
+    return undef
+        unless $table;
+    return unless $connection->has_table($table);
+    $schema ||= $connection->username;
+    my $sql = sprintf($sql{table_indexex_info}, lc($table), lc($connection->username));
+    my $cursor = $connection->query_cursor(sql => $sql);
+    my $record = $cursor->execute([]);
+    my %result;
+    while($cursor->fetch) {
+        push @{$result{$record->{key_name}}}, {
+            index_name   => $record->{key_name},
+            table_name   => $record->{table},
+            column_name  => $record->{column_name},
+            position     => $record->{seq_in_index},
+            is_unique    => ! $record->{non_unique},
+            is_pk        => 0,
+            is_clustered => 0,
+        };
+    }
+    return %result ? [values %result] : undef;
+}
+
 
 =item column_info
 
@@ -315,6 +367,40 @@ sub foreign_key_info {
         ];
     }
     return \@result;
+}
+
+
+=item table_foreign_key_info
+
+=cut
+
+sub table_foreign_key_info {
+    my ($self, $connection, $table_name, $schema) = @_;
+    $schema ||= $connection->username;
+    my $sql = sprintf($sql{table_foreign_key_info}, lc($schema));
+    my $cursor = $connection->query_cursor(sql => $sql);
+    my $record = $cursor->execute([lc($table_name)]);
+    my $owner = lc $connection->username;
+    my %result;
+    while ($cursor->fetch) {
+        my $id = $record->{fk_name};
+        push @{$result{$id}}, [
+            undef,
+            ($record->{pk_schema} || $owner),
+            $record->{pk_table_name},
+            $record->{pk_column_name},
+            undef, 
+            ($record->{fk_schema} || $owner),
+            $record->{fk_table_name},
+            $record->{fk_column_name},
+            $record->{fk_position},
+            undef,
+            undef,
+            $record->{fk_name},
+            $record->{pk_name},
+        ];
+    }
+    return %result ? [values %result] : undef;
 }
 
 

@@ -7,7 +7,7 @@ use vars qw($VERSION $LOB_MAX_SIZE);
 use Abstract::Meta::Class ':all';
 use Carp 'confess';
 
-$VERSION = 0.04;
+$VERSION = 0.05;
 
 $LOB_MAX_SIZE = (1024 * 1024 * 1024);
 
@@ -106,6 +106,28 @@ our %sql = (
     JOIN pg_am am ON am.oid=cls.relam
     WHERE cls.relname = ? },
     
+    table_indexes_info => q{
+    SELECT 
+        cls.relname AS index_name,
+        tab.relname AS table_name, 
+        att.attname AS column_name, 
+        att.attnum AS position,
+        idx.indisunique AS is_unique,
+        idx.indisprimary AS is_pk,
+        idx.indisclustered AS is_clustered,
+        pg_get_expr(trim(BOTH '()' FROM idx.indexprs), idx.indrelid) AS expr,
+        am.amname AS index_type,
+        n.nspname AS schema_name
+    FROM pg_index idx
+    JOIN pg_class cls ON cls.oid=indexrelid
+    JOIN pg_authid pa ON pa.oid = cls.relowner AND pa.rolname = '%s'
+    JOIN pg_namespace n ON n.oid=cls.relnamespace AND n.nspname = '%s'
+    JOIN pg_class tab ON tab.oid=indrelid
+    JOIN pg_attribute att ON att.attrelid = idx.indexrelid
+    JOIN pg_am am ON am.oid=cls.relam
+    WHERE tab.relname = ?
+    },
+    
     unique_index_column => q{
     SELECT 
         cls.relname AS index_name,
@@ -149,6 +171,34 @@ our %sql = (
     JOIN pg_attribute refatt ON refatt.attrelid = reftab.oid AND refatt.attnum = ANY (refcon.conkey)
     WHERE tab.relname = ? AND reftab.relname = ? },
 
+    table_foreign_key_info => q{
+    SELECT 
+        con.conname AS fk_name,
+        att.attname AS fk_column_name, 
+        att.attnum AS fk_position,
+        tab.relname AS fk_table_name,
+        array_to_string(con.conkey,',') AS fk_order,
+        n.nspname AS fk_schema,
+        reftab.relname AS pk_table_name,
+        refcon.conname AS pk_name,
+        refatt.attname AS pk_column_name,
+        refatt.attnum AS pk_position,
+        array_to_string(refcon.conkey,',')  AS pk_order,
+        n1.nspname AS pk_schema
+    FROM pg_attribute att
+    JOIN pg_class tab ON att.attrelid = tab.oid
+    JOIN pg_authid pa ON pa.oid = tab.relowner AND pa.rolname = '%s'
+    JOIN pg_namespace n ON n.oid = tab.relnamespace AND n.nspname = '%s'
+    JOIN pg_constraint con ON con.conrelid = tab.oid AND con.contype = 'f' AND att.attnum = ANY (con.conkey)
+    JOIN pg_class reftab ON con.confrelid  = reftab.oid
+    JOIN pg_namespace n1 ON n1.oid = reftab.relnamespace AND n1.nspname = n.nspname
+    JOIN pg_constraint refcon ON refcon.conrelid = reftab.oid  AND refcon.contype = 'p' 
+    AND refcon.conkey = con.confkey
+    JOIN pg_attribute refatt ON refatt.attrelid = reftab.oid AND refatt.attnum = ANY (refcon.conkey)
+    WHERE tab.relname = ? 
+    },
+    
+    
     trigger_info => q{
     SELECT 
         t.tgname AS trigger_name, 
@@ -280,7 +330,7 @@ sub update_lob {
     my $bind_counter = 1;
     my $sth = $connection->dbh->prepare($sql);
     $sth->bind_param($bind_counter++ ,$lob_id);
-    $sth->bind_param($bind_counter++ , length($lob)) if $lob_size_column_name;
+    $sth->bind_param($bind_counter++ , length($lob || '')) if $lob_size_column_name;
     for my $k (sort keys %$primary_key_values) {
         $sth->bind_param($bind_counter++ , $primary_key_values->{$k});
     }
@@ -362,9 +412,8 @@ sub _read_lob {
     my $offset = 0;
     while(1) {
         $dbh->func($lobj_fd, $offset, 0, 'lo_lseek');
-        my $nbytes = $dbh->func($lobj_fd, $buff, $length, 'lo_read');
-        confess "can't read lob ${lob_id}" . $!
-            unless defined $nbytes;
+        my $nbytes = $dbh->func($lobj_fd, $buff, $length, 'lo_read')
+            or last;
         $result .= $buff;
         $offset += $nbytes;
         last if ($offset == $length);
@@ -477,6 +526,7 @@ sub column_info {
     my $record = $connection->record($sql, $table, $column);
     $result->{default} = $record->{defval};
     $result->{db_type} = $record->{typname};
+    $result->{comment} = $record->{description};
     $self->unique_index_column($connection, $table, $column, $schema, $result);
 }
 
@@ -515,6 +565,29 @@ sub index_info {
         push @result, {%$record};
     }
     return \@result;
+}
+
+=item table_indexes_info
+
+=cut
+
+sub table_indexes_info {
+    my ($self, $connection, $table, $schema) = @_;
+    $schema ||= 'public';
+    my $sql = sprintf($sql{table_indexes_info}, lc($connection->username), lc($schema));
+    my $cursor = $connection->query_cursor(sql => $sql);
+    my $record = $cursor->execute([lc $table]);
+    my %result;
+    while($cursor->fetch) {
+        my $expr = $record->{expr};
+        if($expr) {
+            $expr =~ s/::[^,]+(,)/$1/g;
+            $expr =~ s/::[^\)]+(\))/$1/g;
+            $record->{column_name} = $expr;
+        }
+        push @{$result{$record->{index_name}}}, {%$record};
+    }
+    return %result ? [values %result] : undef;
 }
 
 
@@ -574,6 +647,42 @@ sub foreign_key_info {
     }
     return \@result;
 }
+
+
+=item table_foreign_key_info
+
+=cut
+
+sub table_foreign_key_info {
+    my ($self, $connection, $table_name, $schema) = @_;
+    $schema ||= 'public';
+    my $sql = sprintf($sql{table_foreign_key_info}, lc($connection->username), lc($schema));
+    my $cursor = $connection->query_cursor(sql => $sql);
+    my $record = $cursor->execute([lc($table_name)]);
+    my $owner = lc $connection->username;
+    my %result;
+    while ($cursor->fetch) {
+        my $id = $record->{fk_name};
+        push @{$result{$id}}, [
+            undef,
+            ($record->{pk_schema} || $owner),
+            $record->{pk_table_name},
+            $record->{pk_column_name},
+            undef, 
+            ($record->{fk_schema} || $owner),
+            $record->{fk_table_name},
+            $record->{fk_column_name},
+            $record->{fk_position},
+            undef,
+            undef,
+            $record->{fk_name},
+            $record->{pk_name},
+        ];
+    }
+    return %result ? [values %result] : undef;
+}
+
+
 
 
 =item trigger_info
